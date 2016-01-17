@@ -1,16 +1,10 @@
-<?php # $Id$
+<?php
 # Copyright (c) 2003-2005, Jannis Hermanns (on behalf the Serendipity Developer Team)
 # All rights reserved.  See LICENSE file for licensing details
-# Improved by Vladimir Ajgl (vlada@ajgl.cz) 2008-01-26
 
 if (IN_serendipity !== true) {
     die ("Don't hack!");
 }
-
-if (defined('S9Y_FRAMEWORK_IMAGES')) {
-    return;
-}
-@define('S9Y_FRAMEWORK_IMAGES', true);
 
 /**
  * Check if an uploaded file is "evil"
@@ -24,7 +18,7 @@ function serendipity_isActiveFile($file) {
         return true;
     }
 
-    $core = preg_match('@\.(php.*|[psj]html?|aspx?|cgi|jsp|py|pl)$@i', $file);
+    $core = preg_match('@\.(php.*|[psj]html?|pht|aspx?|cgi|jsp|py|pl)$@i', $file);
     if ($core) {
         return true;
     }
@@ -42,17 +36,17 @@ function serendipity_isActiveFile($file) {
  * @access public
  * @param   int     The offset to start fetching media files
  * @param   int     How many items to fetch
- * @param   int     The number (referenced varaible) of fetched items
+ * @param   int     The number (referenced variable) of fetched items
  * @param   string  The "ORDER BY" sql part when fetching items
  * @param   string  Order by DESC or ASC
  * @param   string  Only fetch files from a specific directory
- * @param   string  Only fetch specific filenames
+ * @param   string  Only fetch specific filenames (including check for realname match)
  * @param   string  Only fetch media with specific keyword
  * @param   array   An array of restricting filter sets
  * @param   boolean Apply strict directory checks, or include subdirectories?
  * @return  array   Resultset of images
  */
-function serendipity_fetchImagesFromDatabase($start=0, $limit=0, &$total=null, $order = false, $ordermode = false, $directory = '', $filename = '', $keywords = '', $filter = array(), $strict_directory = false) {
+function serendipity_fetchImagesFromDatabase($start=0, $limit=0, &$total=null, $order = false, $ordermode = false, $directory = '', $filename = '', $keywords = '', $filter = array(), $hideSubdirFiles = false) {
     global $serendipity;
 
     $cond = array(
@@ -81,12 +75,19 @@ function serendipity_fetchImagesFromDatabase($start=0, $limit=0, &$total=null, $
         $limitsql = serendipity_db_limit_sql(serendipity_db_limit($start, $limit));
     }
 
-    if ($strict_directory) {
-        $cond['parts']['directory'] = " AND i.path = '" . serendipity_db_escape_string($directory) . "'\n";
-    } elseif (!empty($directory)) {
-        $cond['parts']['directory'] = " AND i.path LIKE '" . serendipity_db_escape_string($directory) . "%'\n";
+    if ($hideSubdirFiles == false) {
+        if (!empty($directory)) {
+            $cond['parts']['directory'] = " AND i.path LIKE '" . serendipity_db_escape_string($directory) . "%'\n";
+        }
+        // if in root, having no directory set, the query fetches all files by default, meaning we are done
+    } else {
+        if (!empty($directory)) {
+            $cond['parts']['directory'] = " AND i.path LIKE '" . serendipity_db_escape_string($directory) . "%'\n";
+        } else {
+            $cond['parts']['directory'] = " AND i.path = ''\n";
+        }
     }
-
+    
     if (!empty($filename)) {
         $cond['parts']['filename'] = " AND (i.name     like '%" . serendipity_db_escape_string($filename) . "%' OR
                   i.realname like '%" . serendipity_db_escape_string($filename) . "%')\n";
@@ -104,9 +105,8 @@ function serendipity_fetchImagesFromDatabase($start=0, $limit=0, &$total=null, $
         $cond['parts']['keywords'] = " AND (mk.property IN ('" . serendipity_db_implode("', '", $keywords, 'string') . "'))\n";
         $cond['joinparts']['keywords'] = true;
     }
-
     foreach($filter AS $f => $fval) {
-        if (!isset($orderfields[$f]) || empty($fval)) {
+        if (! (isset($orderfields[$f]) || $f == "fileCategory") || empty($fval)) {
             continue;
         }
 
@@ -139,6 +139,15 @@ function serendipity_fetchImagesFromDatabase($start=0, $limit=0, &$total=null, $
                 $cond['parts']['filter'] .= " AND (bp2.property = '$realf' AND bp2.value = '" . serendipity_db_escape_string(trim($fval)) . "')\n";
             } else {
                 $cond['parts']['filter'] .= " AND ($f = '" . serendipity_db_escape_string(trim($fval)) . "')\n";
+            }
+        } elseif ($f == 'fileCategory') {
+            switch ($fval) {
+                case 'image':
+                    $cond['parts']['filter'] .= " AND (i.mime LIKE 'image/%')\n";
+                    break;
+                case 'video':
+                    $cond['parts']['filter'] .= " AND (i.mime LIKE 'video/%')\n";
+                    break;
             }
         } else {
             if (substr($f, 0, 3) === 'bp.') {
@@ -294,7 +303,7 @@ function serendipity_updateImageInDatabase($updates, $id) {
         $admin = ' AND (authorid = ' . $serendipity['authorid'] . ' OR authorid = 0)';
     }
 
-    $i=0;
+    $i = 0;
     if (sizeof($updates) > 0) {
         foreach ($updates AS $k => $v) {
             $q[] = $k ." = '" . serendipity_db_escape_string($v) . "'";
@@ -314,14 +323,15 @@ function serendipity_updateImageInDatabase($updates, $id) {
  */
 function serendipity_deleteImage($id) {
     global $serendipity;
-    $dThumb = array();
+    $dThumb   = array();
+    $messages = '';
 
     $file   = serendipity_fetchImageFromDatabase($id);
 
     if (!is_array($file)) {
-        printf(FILE_NOT_FOUND . '<br />', $id);
-        return false;
-    }
+        $messages .= sprintf('<span class="msg_error"><span class="icon-attention-circled"></span> ' . FILE_NOT_FOUND . "</span>\n", $id);
+        //return false;
+    } else {
 
     $dFile  = $file['path'] . $file['name'] . (empty($file['extension']) ? '' : '.' . $file['extension']);
 
@@ -338,25 +348,28 @@ function serendipity_deleteImage($id) {
         return;
     }
 
-    if (!$file['hotlink']) {
-        if (file_exists($serendipity['serendipityPath'] . $serendipity['uploadPath'] . $dFile)) {
-            if (@unlink($serendipity['serendipityPath'] . $serendipity['uploadPath'] . $dFile)) {
-                printf(DELETE_FILE . '<br />', $dFile);
-            } else {
-                printf(DELETE_FILE_FAIL . '<br />', $dFile);
-            }
+        if (!$file['hotlink']) {
+            if (file_exists($serendipity['serendipityPath'] . $serendipity['uploadPath'] . $dFile)) {
+                if (@unlink($serendipity['serendipityPath'] . $serendipity['uploadPath'] . $dFile)) {
+                    $messages .= sprintf('<span class="msg_success"><span class="icon-ok-circled"></span> ' . DELETE_FILE . "</span>\n", $dFile);
+                } else {
+                    $messages .= sprintf('<span class="msg_error"><span class="icon-attention-circled"></span> ' . DELETE_FILE_FAIL . "</span>\n", $dFile);
+                }
 
             serendipity_plugin_api::hook_event('backend_media_delete', $dThumb);
             foreach($dThumb AS $thumb) {
                 $dfnThumb = $file['path'] . $file['name'] . (!empty($thumb['fthumb']) ? '.' . $thumb['fthumb'] : '') . (empty($file['extension']) ? '' : '.' . $file['extension']);
                 $dfThumb  = $serendipity['serendipityPath'] . $serendipity['uploadPath'] . $dfnThumb;
 
-                if (@unlink($dfThumb)) {
-                    printf(DELETE_THUMBNAIL . '<br />', $dfnThumb);
+                    if (@unlink($dfThumb)) {
+                        $messages .= sprintf('<span class="msg_success"><span class="icon-ok-circled"></span> ' . DELETE_THUMBNAIL . "</span>\n", $dfnThumb);
+                    }
                 }
+            } else {
+                $messages .= sprintf('<span class="msg_error"><span class="icon-attention-circled"></span> ' . FILE_NOT_FOUND . "</span>\n", $dFile);
             }
         } else {
-            printf(FILE_NOT_FOUND . '<br />', $dFile);
+            $messages .= sprintf('<span class="msg_hint"><span class="icon-help-circled"></span> ' . DELETE_HOTLINK_FILE . "</span>\n", $file['name']);
         }
     } else {
         printf(DELETE_HOTLINK_FILE . '<br />', $file['name']);
@@ -488,8 +501,8 @@ function serendipity_insertHotlinkedImageInDatabase($filename, $url, $authorid =
 
     $sql = serendipity_db_query($query);
     if (is_string($sql)) {
-        echo $query . '<br />';
-        echo $sql . '<br />';
+        echo '<span class="block_level">' . $query . "</span>\n";
+        echo '<span class="block_level">' . $sql . "</span>\n";
     }
 
     $image_id = serendipity_db_insert_id('images', 'id');
@@ -529,11 +542,10 @@ function serendipity_insertImageInDatabase($filename, $directory, $authorid = 0,
     $thumbpath = $serendipity['serendipityPath'] . $serendipity['uploadPath'] . $directory . $filebase . '.'. $serendipity['thumbSuffix'] . (empty($extension) ? '' : '.' . $extension);
     $thumbnail = (file_exists($thumbpath) ? $serendipity['thumbSuffix'] : '');
 
-    $fdim = @serendipity_getimagesize($filepath, '', $extension);
-    $width = $fdim[0];
+    $fdim   = @serendipity_getimagesize($filepath, '', $extension);
+    $width  = $fdim[0];
     $height = $fdim[1];
-    $mime = $fdim['mime'];
-
+    $mime   = $fdim['mime'];
 
     $query = sprintf(
       "INSERT INTO {$serendipity['dbPrefix']}images (
@@ -576,8 +588,8 @@ function serendipity_insertImageInDatabase($filename, $directory, $authorid = 0,
 
     $sql = serendipity_db_query($query);
     if (is_string($sql)) {
-        echo $query . '<br />';
-        echo $sql . '<br />';
+        echo '<span class="block_level">' . $query . "</span>\n";
+        echo '<span class="block_level">' . $sql . "</span>\n";
     }
 
     $image_id = serendipity_db_insert_id('images', 'id');
@@ -587,7 +599,6 @@ function serendipity_insertImageInDatabase($filename, $directory, $authorid = 0,
 
     return 0;
 }
-
 
 /**
  * Create a thumbnail for an image
@@ -609,7 +620,6 @@ function serendipity_makeThumbnail($file, $directory = '', $size = false, $thumb
     if ($size === false) {
         $size = $serendipity['thumbSize'];
     }
-
     if ($size < 1) {
        return array(0,0);
     }
@@ -622,9 +632,8 @@ function serendipity_makeThumbnail($file, $directory = '', $size = false, $thumb
     $f       = $t[0];
     $suf     = $t[1];
 
-
     $infile  = $serendipity['serendipityPath'] . $serendipity['uploadPath'] . $directory . $file;
-#    echo 'From: ' . $infile . '<br />';
+    #echo 'From: ' . $infile . '<br />';
     if ($is_temporary) {
         $temppath = dirname($thumbname);
         if (!is_dir($temppath)) {
@@ -635,9 +644,9 @@ function serendipity_makeThumbnail($file, $directory = '', $size = false, $thumb
         $outfile = $serendipity['serendipityPath'] . $serendipity['uploadPath'] . $directory . $f . '.' . $thumbname . '.' . $suf;
     }
     $serendipity['last_outfile'] = $outfile;
-#    echo 'To: ' . $outfile . '<br />';
+    #echo 'To: ' . $outfile . '<br />';
 
-    $fdim    = @serendipity_getimagesize($infile, '', $suf);
+    $fdim = @serendipity_getimagesize($infile, '', $suf);
     if (isset($fdim['noimage'])) {
         $r = array(0, 0);
     } else {
@@ -648,27 +657,32 @@ function serendipity_makeThumbnail($file, $directory = '', $size = false, $thumb
             } else {
                 // The caller wants a thumbnail constrained in the dimension set by config
                 $calc = serendipity_calculate_aspect_size($fdim[0], $fdim[1], $size, $serendipity['thumbConstraint']);
-                $r = serendipity_resize_image_gd($infile, $outfile, $calc[0], $calc[1]);
+                $r    = serendipity_resize_image_gd($infile, $outfile, $calc[0], $calc[1]);
             }
         } else {
             if (is_array($size)) {
-                $r = $size;
+                if ($fdim[0] > $size['width'] && $fdim[1] > $size['height']) {
+                    $r = $size;
+                } else {
+                    return array(0,0); // do not create any thumb, if image is smaller than defined sizes
+                }
             } else {
                 $calc = serendipity_calculate_aspect_size($fdim[0], $fdim[1], $size, $serendipity['thumbConstraint']);
-                $r = array('width' => $calc[0], 'height' => $calc[1]);
+                $r    = array('width' => $calc[0], 'height' => $calc[1]);
             }
             $newSize = $r['width'] . 'x' . $r['height'];
             if ($fdim['mime'] == 'application/pdf') {
-                $cmd     = escapeshellcmd($serendipity['convert']) . ' -antialias -flatten -scale '. serendipity_escapeshellarg($newSize) .' '. serendipity_escapeshellarg($infile . '[0]') . ' ' . serendipity_escapeshellarg($outfile . '.png');
+                $cmd = escapeshellcmd($serendipity['convert']) . ' -antialias -flatten -scale '. serendipity_escapeshellarg($newSize) .' '. serendipity_escapeshellarg($infile . '[0]') . ' ' . serendipity_escapeshellarg($outfile . '.png');
             } else {
                 if (!$force_resize && serendipity_ini_bool(ini_get('safe_mode')) === false) {
-                    $newSize .= '>'; // Tell imagemagick to not enlarge small images, only works if safe_mode is off (safe_mode turns > in to \>)
+                    $newSize .= '>'; // tell imagemagick to not enlarge small images, only works if safe_mode is off (safe_mode turns > in to \>)
                 }
-                $cmd     = escapeshellcmd($serendipity['convert']) . ' -antialias -resize '. serendipity_escapeshellarg($newSize) .' '. serendipity_escapeshellarg($infile) .' '. serendipity_escapeshellarg($outfile);
+                if (!$serendipity['imagemagick_nobang']) $newSize .= '!'; // force the first run image geometry exactly to given sizes, if there were rounding differences (see https://github.com/s9y/Serendipity/commit/94881ba4c0e3bdd4b5fac510e93977e239171c1c and comments)
+                $cmd = escapeshellcmd($serendipity['convert'] . ' ' . $serendipity['imagemagick_thumb_parameters']) . ' -antialias -resize ' . serendipity_escapeshellarg($newSize) . ' ' . serendipity_escapeshellarg($infile) .' '. serendipity_escapeshellarg($outfile);
             }
             exec($cmd, $output, $result);
             if ($result != 0) {
-                echo '<div class="serendipityAdminMsgError"><img style="width: 22px; height: 22px; border: 0px; padding-right: 4px; vertical-align: middle" src="' . serendipity_getTemplateFile('admin/img/admin_msg_error.png') . '" alt="" />' . sprintf(IMAGICK_EXEC_ERROR, $cmd, $output[0], $result) .'</div>';
+                echo '<span class="msg_error"><span class="icon-attention-circled"></span> ' . sprintf(IMAGICK_EXEC_ERROR, $cmd, $output[0], $result) ."</span>\n";
                 $r = false; // return failure
             } else {
                touch($outfile);
@@ -676,7 +690,6 @@ function serendipity_makeThumbnail($file, $directory = '', $size = false, $thumb
             unset($output, $result);
         }
     }
-
     return $r;
 }
 
@@ -712,13 +725,17 @@ function serendipity_scaleImg($id, $width, $height) {
         $cmd = escapeshellcmd($serendipity['convert']) . ' -scale ' .  serendipity_escapeshellarg($width . 'x' . $height) . ' ' . serendipity_escapeshellarg($infile) . ' ' . serendipity_escapeshellarg($outfile);
         exec($cmd, $output, $result);
         if ( $result != 0 ) {
-            echo '<div class="serendipityAdminMsgError"><img style="width: 22px; height: 22px; border: 0px; padding-right: 4px; vertical-align: middle" src="' . serendipity_getTemplateFile('admin/img/admin_msg_error.png') . '" alt="" />' . sprintf(IMAGICK_EXEC_ERROR, $cmd, $output[0], $result) .'</div>';
+            echo '<span class="msg_error"><span class="icon-attention-circled"></span> ' . sprintf(IMAGICK_EXEC_ERROR, $cmd, $output[0], $result) ."</span>\n";
+            return false;
         }
         unset($output, $result);
     }
 
-    serendipity_updateImageInDatabase(array('dimensions_width' => $width, 'dimensions_height' => $height, 'size' => @filesize($outfile)), $id);
-    return true;
+    if ($result == 0) {
+        serendipity_updateImageInDatabase(array('dimensions_width' => $width, 'dimensions_height' => $height, 'size' => @filesize($outfile)), $id);
+        return true;
+    }
+    return false;
 }
 
 /**
@@ -759,7 +776,7 @@ function serendipity_rotateImg($id, $degrees) {
         $cmd = escapeshellcmd($serendipity['convert']) . ' -rotate ' . serendipity_escapeshellarg($degrees) . ' ' . serendipity_escapeshellarg($infile) . ' ' . serendipity_escapeshellarg($outfile);
         exec($cmd, $output, $result);
         if ( $result != 0 ) {
-            echo '<div class="serendipityAdminMsgError"><img style="width: 22px; height: 22px; border: 0px; padding-right: 4px; vertical-align: middle" src="' . serendipity_getTemplateFile('admin/img/admin_msg_error.png') . '" alt="" />' . sprintf(IMAGICK_EXEC_ERROR, $cmd, $output[0], $result) .'</div>';
+            echo '<span class="msg_error"><span class="icon-attention-circled"></span> ' . sprintf(IMAGICK_EXEC_ERROR, $cmd, $output[0], $result) ."</span>\n";
         }
         unset($output, $result);
 
@@ -767,7 +784,7 @@ function serendipity_rotateImg($id, $degrees) {
         $cmd = escapeshellcmd($serendipity['convert']) . ' -rotate ' . serendipity_escapeshellarg($degrees) . ' ' . serendipity_escapeshellarg($infileThumb) . ' ' . serendipity_escapeshellarg($outfileThumb);
         exec($cmd, $output, $result);
         if ( $result != 0 ) {
-            echo '<div class="serendipityAdminMsgError"><img style="width: 22px; height: 22px; border: 0px; padding-right: 4px; vertical-align: middle" src="' . serendipity_getTemplateFile('admin/img/admin_msg_error.png') . '" alt="" />'. sprintf(IMAGICK_EXEC_ERROR, $cmd, $output[0], $result) .'</div>';
+            echo '<span class="msg_error"><span class="icon-attention-circled"></span> ' . sprintf(IMAGICK_EXEC_ERROR, $cmd, $output[0], $result) ."</span>\n";
         }
         unset($output, $result);
 
@@ -780,7 +797,6 @@ function serendipity_rotateImg($id, $degrees) {
     return true;
 }
 
-
 /**
  * Creates thumbnails for all images in the upload dir
  *
@@ -790,7 +806,7 @@ function serendipity_rotateImg($id, $degrees) {
 function serendipity_generateThumbs() {
     global $serendipity;
 
-    $i=0;
+    $i = 0;
     $serendipity['imageList'] = serendipity_fetchImagesFromDatabase(0, 0, $total);
     $msg_printed = false;
 
@@ -813,28 +829,30 @@ function serendipity_generateThumbs() {
 
             $oldThumb = $serendipity['serendipityPath'] . $serendipity['uploadPath'] . $file['path'] . $file['name'] . '.' . $file['thumbnail_name'] . (empty($file['extension']) ? '' : '.' . $file['extension']);
             $newThumb = $serendipity['serendipityPath'] . $serendipity['uploadPath'] . $file['path'] . $file['name'] . '.' . $serendipity['thumbSuffix'] . (empty($file['extension']) ? '' : '.' . $file['extension']);
-            $sThumb = $file['path'] . $file['name'] . '.' . $serendipity['thumbSuffix'] . (empty($file['extension']) ? '' : '.' . $file['extension']);
-            $fdim = @getimagesize($ffull);
+            $sThumb   = $file['path'] . $file['name'] . '.' . $serendipity['thumbSuffix'] . (empty($file['extension']) ? '' : '.' . $file['extension']);
+            $fdim     = @getimagesize($ffull);
 
             if (!file_exists($oldThumb) && !file_exists($newThumb) && ($fdim[0] > $serendipity['thumbSize'] || $fdim[1] > $serendipity['thumbSize'])) {
                 $returnsize = serendipity_makeThumbnail($file['name'] . (empty($file['extension']) ? '' : '.' . $file['extension']), $file['path']);
                 if ($returnsize !== false ) {
                     // Only print the resize message the first time
                     if (!$msg_printed) {
-                      printf(RESIZE_BLAHBLAH, THUMBNAIL_SHORT);
-                      echo "\n" . '<ul class="serendipityFileList">' . "\n";
-                      $msg_printed = true;
+                        $resizemedia = sprintf(RESIZE_BLAHBLAH, THUMBNAIL_SHORT);
+                        printf('<span class="msg_notice"><span class="icon-info-circled"></span> ' . $resizemedia . "</span>\n");
+                        echo "\n" . '<ul class="serendipityFileList">' . "\n";
+                        $msg_printed = true;
                     }
-                    echo '<li>' . $sThumb . ': ' . $returnsize[0] . 'x' . $returnsize[1] . "</li>\n";
+                    echo '<li>' . $sThumb . ': ' . $returnsize['width'] . 'x' . $returnsize['height'] . "</li>\n";
                     if (!file_exists($newThumb)) {
-                        printf('<li><div class="serendipityAdminMsgError"><img style="width: 22px; height: 22px; border: 0px; padding-right: 4px; vertical-align: middle" src="' . serendipity_getTemplateFile('admin/img/admin_msg_error.png') . '" alt="" />' . THUMBNAIL_FAILED_COPY . '</div></li>' . "\n", $sThumb);
+                        printf('<li><span class="msg_error"><span class="icon-attention-circled"></span> ' . THUMBNAIL_FAILED_COPY . '</span></li>' . "\n", $sThumb);
                     } else {
                         $update = true;
                     }
                 }
             } elseif (!file_exists($oldThumb) && !file_exists($newThumb) && $fdim[0] <= $serendipity['thumbSize'] && $fdim[1] <= $serendipity['thumbSize']) {
                 if (!$msg_printed) {
-                    printf(RESIZE_BLAHBLAH, THUMB);
+                    $resizethumb = sprintf(RESIZE_BLAHBLAH, THUMB);
+                    printf('<span class="msg_notice"><span class="icon-info-circled"></span> ' . $resizethumb . "</span>\n");
                     echo "\n" . '<ul class="serendipityFileList">' . "\n";
                     $msg_printed = true;
                 }
@@ -843,7 +861,7 @@ function serendipity_generateThumbs() {
                     printf('<li>' . THUMBNAIL_USING_OWN . '</li>' . "\n", $sThumb);
                     $update = true;
                 } else {
-                    printf('<li><div class="serendipityAdminMsgError"><img style="width: 22px; height: 22px; border: 0px; padding-right: 4px; vertical-align: middle" src="' . serendipity_getTemplateFile('admin/img/admin_msg_error.png') . '" alt="" />' . THUMBNAIL_FAILED_COPY . '</div></li>' . "\n", $sThumb);
+                    printf('<li><span class="msg_error"><span class="icon-attention-circled"></span> ' . THUMBNAIL_FAILED_COPY . '</span></li>' . "\n", $sThumb);
                 }
             }
 
@@ -1085,22 +1103,23 @@ function serendipity_guessMime($extension) {
 function serendipity_syncThumbs($deleteThumbs = false) {
     global $serendipity;
 
-    $i=0;
-    $files = serendipity_fetchImages();
+    $i = 0;
 
+    $files  = serendipity_fetchImages();
     $fcount = count($files);
+
     for ($x = 0; $x < $fcount; $x++) {
         $update = array();
         $f      = serendipity_parseFileName($files[$x]);
         if (empty($f[1]) || $f[1] == $files[$x]) {
             // No extension means bad file most probably. Skip it.
-            printf(SKIPPING_FILE_EXTENSION . '<br />', $files[$x]);
+            printf('<span class="msg_error"><span class="icon-attention-circled"></span> ' . SKIPPING_FILE_EXTENSION . "</span>\n", $files[$x]);
             continue;
         }
 
         $ffull   = $serendipity['serendipityPath'] . $serendipity['uploadPath'] . $files[$x];
         $fthumb  = $serendipity['serendipityPath'] . $serendipity['uploadPath'] . $f[0] . '.' . $serendipity['thumbSuffix'] . '.' . $f[1];
-        $sThumb = $f[0] . '.' . $serendipity['thumbSuffix'] . '.' . $f[1];
+        $sThumb  = $f[0] . '.' . $serendipity['thumbSuffix'] . '.' . $f[1];
         $fbase   = basename($f[0]);
         $fdir    = dirname($f[0]) . '/';
         if ($fdir == './') {
@@ -1108,14 +1127,14 @@ function serendipity_syncThumbs($deleteThumbs = false) {
         }
 
         if (!is_readable($ffull) || filesize($ffull) == 0) {
-            printf(SKIPPING_FILE_UNREADABLE . '<br />', $files[$x]);
+            printf('<span class="msg_error"><span class="icon-attention-circled"></span> ' . SKIPPING_FILE_UNREADABLE . "</span>\n", $files[$x]);
             continue;
         }
 
         $ft_mime = serendipity_guessMime($f[1]);
         $fdim    = serendipity_getimagesize($ffull, $ft_mime);
 
-        // If we're supposed to delete thumbs, this is the easiest place.
+        // If we're supposed to delete thumbs, this is the easiest place. Leave messages plain unstiled.
         if (is_readable($fthumb)) {
             if ($deleteThumbs === true) {
                 if (@unlink($fthumb)) {
@@ -1133,8 +1152,7 @@ function serendipity_syncThumbs($deleteThumbs = false) {
                     }
                 } else {
                     // Calculate correct thumbnail size from original image
-                    $expect = serendipity_calculate_aspect_size(
-                        $fdim[0], $fdim[1], $serendipity['thumbSize'], $serendipity['thumbConstraint']);
+                    $expect = serendipity_calculate_aspect_size($fdim[0], $fdim[1], $serendipity['thumbSize'], $serendipity['thumbConstraint']);
                     // Check actual thumbnail size
                     if ($tdim[0] != $expect[0] || $tdim[1] != $expect[1]) {
                         // This thumbnail is incorrect; delete it so
@@ -1162,10 +1180,10 @@ function serendipity_syncThumbs($deleteThumbs = false) {
                                            {$cond['joins']}
 
                                            {$cond['and']}", true, 'assoc');
-
+        // Leave messages plain unstiled
         if (is_array($rs)) {
             // This image is in the database.  Check our calculated data against the database data.
-            $update    = array();
+            $update = array();
             // Is the width correct?
             if (isset($fdim[0]) && $rs['dimensions_width'] != $fdim[0]) {
                 $update['dimensions_width'] = $fdim[0];
@@ -1288,7 +1306,6 @@ function serendipity_rotate_image_gd($infilename, $outfilename, $degrees)
     return array($newwidth, $newheight);
 }
 
-
 /**
  * Resize an image (GDLib)
  *
@@ -1306,13 +1323,19 @@ function serendipity_resize_image_gd($infilename, $outfilename, $newwidth, $newh
         return false;
     }
 
-    $in = $func['load']($infilename);
+    try {
+        // if an image exist that can not be loaded (invalid gif for example), the page shall still be rendered
+        $in = $func['load']($infilename);
+    } catch (Exception $e) {
+        echo 'Could not create thumbnail: ',  $e->getMessage(), "\n";
+        return false;
+    }
     $width = imagesx($in);
     $height = imagesy($in);
 
     if (is_null($newheight)) {
-        $newsizes = serendipity_calculate_aspect_size($width, $height, $newwidth, 'width');
-        $newwidth = $newsizes[0];
+        $newsizes  = serendipity_calculate_aspect_size($width, $height, $newwidth, 'width');
+        $newwidth  = $newsizes[0];
         $newheight = $newsizes[1];
     }
 
@@ -1332,7 +1355,7 @@ function serendipity_resize_image_gd($infilename, $outfilename, $newwidth, $newh
 
     imagecopyresampled($out, $in, 0, 0, 0, 0, $newwidth, $newheight, $width, $height);
     @umask(0000);
-    touch($outfilename);  // safe_mode requirement
+    touch($outfilename); // safe_mode requirement
     $func['save']($out, $outfilename, $func['qual']);
     @chmod($outfilename, 0664);
     $out = null;
@@ -1348,8 +1371,8 @@ function serendipity_resize_image_gd($infilename, $outfilename, $newwidth, $newh
  * @param   int     Image width
  * @param   int     Image height
  * @param   int     Target dimension size
- * @param   string  Dimension to constrain ('width', 'height', 'largest', 
-                    'smallest'; defaults to original behavior, 'largest')
+ * @param   string  Dimension to constrain ('width', 'height', 'largest',
+ *                  'smallest'; defaults to original behavior, 'largest')
  * @return  array   An array with the scaled width and height
  */
 function serendipity_calculate_aspect_size($width, $height, $size, $constraint = null) {
@@ -1359,7 +1382,7 @@ function serendipity_calculate_aspect_size($width, $height, $size, $constraint =
 
     // Rearrange params for calls from old imageselectorplus plugin
     if ($size == null) {
-      $size = $constraint;
+      $size       = $constraint;
       $constraint = 'smallest';
     }
 
@@ -1388,7 +1411,7 @@ function serendipity_calculate_aspect_size($width, $height, $size, $constraint =
         // Is the image big enough to resize?
         if ($height > $size) {
             // Calculate new size
-            $ratio = $width / $height;
+            $ratio    = $width / $height;
             $newwidth = round($size * $ratio);
             // Limit calculated dimension to at least 1px
             if ($newwidth <= 0) {
@@ -1425,50 +1448,27 @@ function serendipity_calculate_aspect_size($width, $height, $size, $constraint =
  * @access public
  * @param   int     The current page number
  * @param   string  The HTML linebreak to use after a row of images
- * @param   boolean Should the toolbar for editing media files be shown?
+ * @param   boolean Is this the ML-Version for managing everything (true), or is it about selecting one image for the editor? (false)
  * @param   string  The URL to use for pagination
  * @param   boolean Show the "upload media item" feature?
  * @param   boolean Restrict viewing images to a specific directory
- * @param   boolean  If TRUE, will echo Smarty output.
- * @return  string   Smarty block name
+ * @param   array   Map of smarty vars transported into all following templates
+ * @return  string   Generated HTML
  */
-function serendipity_displayImageList($page = 0, $lineBreak = NULL, $manage = false, $url = NULL, $show_upload = false, $limit_path = NULL, $smarty_display = true) {
+function serendipity_displayImageList($page = 0, $lineBreak = NULL, $manage = false, $url = NULL, $show_upload = false, $limit_path = NULL, $smarty_vars = array()) {
     global $serendipity;
     static $debug = false;
 
-    $sortParams        = array('perpage', 'order', 'ordermode');
-    $importParams      = array('adminModule', 'htmltarget', 'filename_only', 'textarea', 'subpage',  'keywords');
-    $extraParems       = '';
-    $filterParams      = array('only_path', 'only_filename');
-
-    foreach($importParams AS $importParam) {
-        if (isset($serendipity['GET'][$importParam])) {
-            $extraParems .= 'serendipity[' . $importParam . ']='. htmlspecialchars($serendipity['GET'][$importParam]) .'&amp;';
-        }
-    }
-
-    foreach($sortParams AS $sortParam) {
-        serendipity_restoreVar($serendipity['COOKIE']['sortorder_' . $sortParam], $serendipity['GET']['sortorder'][$sortParam]);
-        serendipity_JSsetCookie('sortorder_' . $sortParam, htmlspecialchars($serendipity['GET']['sortorder'][$sortParam]));
-        $extraParems .= 'serendipity[sortorder]['. $sortParam .']='. htmlspecialchars($serendipity['GET']['sortorder'][$sortParam]) .'&amp;';
-    }
-
-    foreach($filterParams AS $filterParam) {
-        serendipity_restoreVar($serendipity['COOKIE'][$filterParam], $serendipity['GET'][$filterParam]);
-        serendipity_JSsetCookie($filterParam, htmlspecialchars($serendipity['GET'][$filterParam]));
-        if (!empty($serendipity['GET'][$filterParam])) {
-            $extraParems .= 'serendipity[' . $filterParam . ']='. htmlspecialchars($serendipity['GET'][$filterParam]) .'&amp;';
-        }
-    }
-
+    $extraParems = serendipity_generateImageSelectorParems();
+    
     $serendipity['GET']['only_path']     = serendipity_uploadSecure($limit_path . $serendipity['GET']['only_path'], true);
-    $serendipity['GET']['only_filename'] = htmlspecialchars(str_replace(array('*', '?'), array('%', '_'), $serendipity['GET']['only_filename']));
+    $serendipity['GET']['only_filename'] = serendipity_specialchars(str_replace(array('*', '?'), array('%', '_'), $serendipity['GET']['only_filename']));
 
     $perPage = (!empty($serendipity['GET']['sortorder']['perpage']) ? (int)$serendipity['GET']['sortorder']['perpage'] : 8);
     while ($perPage % $lineBreak !== 0) {
         $perPage++;
     }
-    $start   = ($page-1) * $perPage;
+    $start = ($page-1) * $perPage;
 
     if ($manage && $limit_path == NULL) {
         ## SYNCH START ##
@@ -1510,11 +1510,15 @@ function serendipity_displayImageList($page = 0, $lineBreak = NULL, $manage = fa
         // in the database
 
         $nCount = 0;
+
         if ($debug) echo "<p>Image Sync Right: " . serendipity_checkPermission('adminImagesSync') . " Onthefly Sync: " . $serendipity['onTheFlySynch'] . " Hash: " . $serendipity['current_image_hash'] . "!=" . $serendipity['last_image_hash']. "</p>";
+
         if ($serendipity['onTheFlySynch'] && serendipity_checkPermission('adminImagesSync') && ($debug  || ($serendipity['current_image_hash'] != $serendipity['last_image_hash']))) {
             $aResultSet = serendipity_db_query("SELECT path, name, extension, thumbnail_name, id
                                                 FROM {$serendipity['dbPrefix']}images", false, 'assoc');
+
             if ($debug) echo "<p>Got images: <pre>" . print_r($aResultSet, true) . "</pre></p>";
+
             if (is_array($aResultSet)) {
                 foreach ($aResultSet AS $sKey => $sFile) {
                     serendipity_plugin_api::hook_event('backend_thumbnail_filename_select', $sFile);
@@ -1526,13 +1530,16 @@ function serendipity_displayImageList($page = 0, $lineBreak = NULL, $manage = fa
                     }
 
                     $sFileName = $sFile['path'] . $sFile['name'] . (empty($sFile['extension']) ? '' : '.' . $sFile['extension']);
-                    if ($debug) echo "<p>File name is $sFileName,<br />thumbnail is $sThumbNailFile</p>";
+
+                    if ($debug) echo "<p>File name is $sFileName, thumbnail is $sThumbNailFile</p>";
+
                     unset($aResultSet[$sKey]);
 
                     if (isset($aFilesOnDisk[$sFileName])) {
                         unset($aFilesOnDisk[$sFileName]);
                     } else {
-                        if ($debug) echo "Deleting Image {$sFile['id']}<br />\n";
+                        if ($debug) echo "<span class='block_level'>Deleting Image {$sFile['id']}</span>";
+
                         serendipity_deleteImage($sFile['id']);
                         ++$nCount;
                     }
@@ -1546,7 +1553,9 @@ function serendipity_displayImageList($page = 0, $lineBreak = NULL, $manage = fa
 
             serendipity_set_config_var('last_image_hash', $serendipity['current_image_hash'], 0);
             $aUnmatchedOnDisk = array_keys($aFilesOnDisk);
+
             if ($debug) echo "<p>Got unmatched files: <pre>" . print_r($aUnmatchedOnDisk, true) . "</pre></p>";
+
             $nCount = 0;
             foreach ($aUnmatchedOnDisk AS $sFile) {
                 if (preg_match('@\.' . $serendipity['thumbSuffix'] . '\.@', $sFile)) {
@@ -1594,6 +1603,11 @@ function serendipity_displayImageList($page = 0, $lineBreak = NULL, $manage = fa
     ## Aply ACL afterwards:
     serendipity_directoryACL($paths, 'read');
 
+    // set remember filter settings for SetCookie
+    if (!isset($serendipity['GET']['filter'])) {
+        serendipity_restoreVar($serendipity['COOKIE']['filter'], $serendipity['GET']['filter']);
+    }
+
     $serendipity['imageList'] = serendipity_fetchImagesFromDatabase(
                                   $start,
                                   $perPage,
@@ -1603,12 +1617,16 @@ function serendipity_displayImageList($page = 0, $lineBreak = NULL, $manage = fa
                                   (isset($serendipity['GET']['only_path']) ? $serendipity['GET']['only_path'] : ''),
                                   (isset($serendipity['GET']['only_filename']) ? $serendipity['GET']['only_filename'] : ''),
                                   (isset($serendipity['GET']['keywords']) ? $serendipity['GET']['keywords'] : ''),
-                                  (isset($serendipity['GET']['filter']) ? $serendipity['GET']['filter'] : '')
+                                  (isset($serendipity['GET']['filter']) ? $serendipity['GET']['filter'] : ''),
+                                  isset($serendipity['GET']['hideSubdirFiles'])
     );
 
     $pages         = ceil($totalImages / $perPage);
-    $linkPrevious  = '?' . $extraParems . 'serendipity[page]=' . ($page-1);
-    $linkNext      = '?' . $extraParems . 'serendipity[page]=' . ($page+1);
+    $linkPrevious  = '?' . $extraParems . '&amp;serendipity[page]=' . ($page-1);
+    $linkNext      = '?' . $extraParems . '&amp;serendipity[page]=' . ($page+1);
+    // Keep the inner to be build first. Now add first and last. Has to do with adding $param to $extraParems.
+    $linkFirst     = '?' . $extraParems . '&amp;serendipity[page]=' . 1;
+    $linkLast      = '?' . $extraParems . '&amp;serendipity[page]=' . $pages;
     if (is_null($lineBreak)) {
         $lineBreak = floor(750 / ($serendipity['thumbSize'] + 20));
     }
@@ -1644,16 +1662,20 @@ function serendipity_displayImageList($page = 0, $lineBreak = NULL, $manage = fa
         }
     }
 
-    $smarty_vars = array(
+    $smarty_vars = array_merge($smarty_vars, array(
         'limit_path'    => $limit_path,
         'perPage'       => $perPage,
         'show_upload'   => $show_upload,
         'page'          => $page,
         'pages'         => $pages,
+        'linkFirst'     => $linkFirst,
         'linkNext'      => $linkNext,
         'linkPrevious'  => $linkPrevious,
-        'extraParems'   => $extraParems
-    );
+        'linkLast'      => $linkLast,
+        'extraParems'   => $extraParems,
+        'totalImages'   => $totalImages
+    ));
+
     return serendipity_showMedia(
         $serendipity['imageList'],
         $paths,
@@ -1661,10 +1683,68 @@ function serendipity_displayImageList($page = 0, $lineBreak = NULL, $manage = fa
         $manage,
         $lineBreak,
         true,
-        $smarty_vars,
-        $smarty_display
+        $smarty_vars
     );
 } // End serendipity_displayImageList()
+
+/**
+ * Generate the url-parameters needed when generating the ML to select an image to add to the editor,
+ * to store the relevant options (like which textarea to add it to)
+ *
+ * @param   string  Url or Form format
+ */
+function serendipity_generateImageSelectorParems($format = 'url') {
+    global $serendipity;
+
+    $sortParams   = array('perpage', 'order', 'ordermode');
+    $importParams = array('adminModule', 'htmltarget', 'filename_only', 'textarea', 'subpage',  'keywords', 'noBanner', 'noSidebar', 'noFooter', 'showUpload','showMediaToolbar');
+    $extraParems  = '';
+    $filterParams = $serendipity['GET']['filter'] ?: array(); // ?: elvis operator, see http://en.wikipedia.org/wiki/Elvis_operator and upcoming PHP 7 ?? (isset) operator
+
+    $standaloneFilterParams = array('only_path', 'only_filename');
+    $parems = array();
+
+    foreach($importParams AS $importParam) {
+        if (isset($serendipity['GET'][$importParam])) {
+            $parems['serendipity[' . $importParam . ']'] = $serendipity['GET'][$importParam];
+        }
+    }
+
+    foreach($sortParams AS $sortParam) {
+        serendipity_restoreVar($serendipity['COOKIE']['sortorder_' . $sortParam], $serendipity['GET']['sortorder'][$sortParam]);
+        $parems['serendipity[sortorder]['. $sortParam .']'] = $serendipity['GET']['sortorder'][$sortParam];
+    }
+
+    foreach($standaloneFilterParams AS $filterParam) {
+        serendipity_restoreVar($serendipity['COOKIE'][$filterParam], $serendipity['GET'][$filterParam]);
+        if (!empty($serendipity['GET'][$filterParam]) && $serendipity['GET'][$filterParam] != "undefined") {
+            $parems['serendipity[' . $filterParam . ']'] = $serendipity['GET'][$filterParam];
+        }
+    }
+
+    foreach($filterParams AS $filterParam => $filterValue) {
+        serendipity_restoreVar($serendipity['COOKIE']['filter'][$filterParam], $serendipity['GET']['filter'][$filterParam]);
+        if (!empty($serendipity['GET']['filter'][$filterParam]) && $serendipity['GET']['filter'][$filterParam] != "undefined") {
+            if (is_array($filterValue)) {
+                foreach($filterValue as $key => $value) {
+                    $parems['serendipity[filter][' . $filterParam . '][' . $key . ']'] = $value;
+                }
+            } else {
+                $parems['serendipity[filter][' . $filterParam . ']'] = $filterValue;
+            }
+        }
+    }
+
+    foreach ($parems as $param => $value) {
+        if ($format == "form") {
+            $extraParems .= '<input type="hidden" name="'. $param .'" value="'. serendipity_specialchars($value) .'">'."\n";
+        } else {
+            $extraParems .= $param.'='. serendipity_specialchars($value) .'&amp;';
+        }
+    }
+
+    return rtrim($extraParems, '&amp;');
+}
 
 /**
  * Check if a media item is an image
@@ -1702,7 +1782,6 @@ function serendipity_isImage(&$file, $strict = false, $allowed = 'image/') {
  * @return true
  */
 function serendipity_killPath($basedir, $directory = '', $forceDelete = false) {
-    static $n = "<br />\n";
     static $serious = true;
 
     if ($handle = @opendir($basedir . $directory)) {
@@ -1717,17 +1796,19 @@ function serendipity_killPath($basedir, $directory = '', $forceDelete = false) {
         }
         @closedir($handle);
 
-        printf(CHECKING_DIRECTORY . "<br />\n", $directory);
+        echo '<span class="msg_notice"><span class="icon-info-circled"></span> ';
+        printf(CHECKING_DIRECTORY, $directory);
+        echo "</span>";
 
         // No, we just don't kill files the easy way. We sort them out properly from the database
         // and preserve files not entered therein.
         $files = serendipity_fetchImagesFromDatabase(0, 0, $total, false, false, $directory);
         if (is_array($files)) {
-            echo "<ul>\n";
+            echo "<ul class='plainList'>\n";
             foreach($files AS $f => $file) {
                 echo "<li>\n";
                 if ($serious) {
-                    serendipity_deleteImage($file['id']);
+                    echo serendipity_deleteImage($file['id']);
                 } else {
                     echo $file['name'] . (empty($file['extension']) ? '' : '.' . $file['extension']);
                 }
@@ -1741,17 +1822,17 @@ function serendipity_killPath($basedir, $directory = '', $forceDelete = false) {
 
         if (count($filestack) > 0) {
             if ($forceDelete) {
-                echo "<ul>\n";
+                echo "<ul class='plainList'>\n";
                 foreach($filestack AS $f => $file) {
                     if ($serious && @unlink($basedir . $file)) {
-                        printf('<li>' . DELETING_FILE . $n . DONE . "</li>\n", $file);
+                        printf('<li><span class="msg_success"><span class="icon-ok-circled"></span> ' . DELETING_FILE . ' ' . DONE . "</span></li>\n", $file);
                     } else {
-                        printf('<li>' . DELETING_FILE . $n . ERROR . "</li>\n", $file);
+                        printf('<li><span class="msg_error"><span class="icon-attention-circled"></span> ' . DELETING_FILE . ' ' . ERROR . "</span></li>\n", $file);
                     }
                 }
                 echo "</ul>\n";
             } else {
-                echo ERROR_DIRECTORY_NOT_EMPTY . $n;
+                echo '<span class="msg_error"><span class="icon-attention-circled"></span> ' . ERROR_DIRECTORY_NOT_EMPTY . "</span>\n";
                 echo "<ul>\n";
                 foreach($filestack AS $f => $file) {
                     echo '<li>' . $file . "</li>\n";
@@ -1760,18 +1841,19 @@ function serendipity_killPath($basedir, $directory = '', $forceDelete = false) {
             }
         }
 
-        echo '<strong>';
         if ($serious && !empty($directory) && !preg_match('@^.?/?$@', $directory) && @rmdir($basedir . $directory)) {
-            printf(DIRECTORY_DELETE_SUCCESS . $n, $directory);
+            echo '<span class="msg_success"><span class="icon-ok-circled"></span> ';
+            printf(DIRECTORY_DELETE_SUCCESS, $directory);
+            echo "</span>\n";
         } else {
-            printf(DIRECTORY_DELETE_FAILED . $n, $directory);
+            echo '<span class="msg_error"><span class="icon-attention-circled"></span> ';
+            printf(DIRECTORY_DELETE_FAILED, $directory);
+            echo "</span>\n";
         }
-        echo '</strong>';
     }
 
     return true;
 }
-
 
 /**
  * Recursively walk a directory tree
@@ -1793,7 +1875,7 @@ function serendipity_traversePath($basedir, $dir='', $onlyDirs = true, $pattern 
     if ($aExcludeDirs === null) {
         // add _vti_cnf to exclude possible added servers frontpage extensions
         // add ckeditor/kcfinders .thumb dir to exclude, since no hook
-        $aExcludeDirs = array("CVS" => true, ".svn" => true, ".thumbs" => true, "_vti_cnf" => true);
+        $aExcludeDirs = array("CVS" => true, ".svn" => true, ".thumbs" => true, "_vti_cnf" => true, ".git" => true);
     }
 
     $odir = serendipity_dirSlash('end', $basedir) . serendipity_dirSlash('end', $dir);
@@ -1821,10 +1903,10 @@ function serendipity_traversePath($basedir, $dir='', $onlyDirs = true, $pattern 
             }
 
             if ($bIsDir &&
-                ($max_depth === null || $depth < $max_depth) &&
-                ($aExcludeDirs == null || !isset($aExcludeDirs[$file]))) {
+                    ($max_depth === null || $depth < $max_depth) &&
+                    ($aExcludeDirs == null || !isset($aExcludeDirs[$file]))) {
                 $next_dir = serendipity_dirSlash('end', $dir) . basename($file);
-                $files = array_merge($files, serendipity_traversePath($basedir, $next_dir, $onlyDirs, $pattern, ($depth+1), $max_depth, $apply_ACL, $aExcludeDirs));
+                $files    = array_merge($files, serendipity_traversePath($basedir, $next_dir, $onlyDirs, $pattern, ($depth+1), $max_depth, $apply_ACL, $aExcludeDirs));
             }
         }
     }
@@ -1878,15 +1960,17 @@ function serendipity_deletePath($dir) {
 }
 
 /**
- * Check if a entered HTTP upload path is valid
+ * Transform a filename into a valid  upload path
  *
  * @access public
  * @param   string      The input filename
  * @param   boolean     Shall all paths be stripped?
  * @param   boolean     Shall a trailing slash be appended?
- * @return  string      The condom-wrapped path/file info
+ * @return  string      The valid filename
  */
 function serendipity_uploadSecure($var, $strip_paths = true, $append_slash = false) {
+
+    $var = str_replace(' ', '_', $var);
     $var = preg_replace('@[^0-9a-z\._/-]@i', '', $var);
     if ($strip_paths) {
         $var = preg_replace('@(\.+[/\\\\]+)@', '/', $var);
@@ -1954,47 +2038,60 @@ function serendipity_getimagesize($file, $ft_mime = '', $suf = '') {
 function serendipity_getImageFields() {
     global $serendipity;
 
-    $x = array(
-        'i.date'              => array('desc' => SORT_ORDER_DATE,
-                                     'type' => 'date'
-                               ),
+    if ($serendipity['simpleFilters'] !== false) {
+        $x = array(
+            'i.date'              => array('desc' => SORT_ORDER_DATE,
+                                         'type' => 'date'
+                                   ),
 
-        'i.name'              => array('desc' => SORT_ORDER_NAME
-                               ),
+            'i.name'              => array('desc' => SORT_ORDER_NAME
+                                   ),
 
-        'i.authorid'          => array('desc' => AUTHOR,
-                                     'type' => 'authors'
-                               ),
+        );
 
-        'i.extension'         => array('desc' => SORT_ORDER_EXTENSION
-                               ),
+    } else {
+        $x = array(
+            'i.date'              => array('desc' => SORT_ORDER_DATE,
+                                         'type' => 'date'
+                                   ),
 
-        'i.size'              => array('desc' => SORT_ORDER_SIZE,
-                                     'type' => 'intrange'
-                               ),
+            'i.name'              => array('desc' => SORT_ORDER_NAME
+                                   ),
 
-        'i.dimensions_width'  => array('desc' => SORT_ORDER_WIDTH,
-                                     'type' => 'intrange'
-                               ),
+            'i.authorid'          => array('desc' => AUTHOR,
+                                         'type' => 'authors'
+                                   ),
 
-        'i.dimensions_height' => array('desc' => SORT_ORDER_HEIGHT,
-                                     'type' => 'intrange'
-                               )
-    );
+            'i.extension'         => array('desc' => SORT_ORDER_EXTENSION
+                                   ),
 
-    $addProp = explode(';', $serendipity['mediaProperties']);
-    foreach($addProp AS $prop) {
-        $parts = explode(':', $prop);
-        $name  = $parts[0];
-        $x['bp.' . $name] = array('desc' => (defined('MEDIA_PROPERTY_' . $name) ? constant('MEDIA_PROPERTY_' . $name) : htmlspecialchars($name)));
-        if (preg_match('@date@i', $name)) {
-            $x['bp.' . $name]['type'] = 'date';
-        }
-        if (preg_match('@length@i', $name)) {
-            $x['bp.' . $name]['type'] = 'intrange';
-        }
-        if (preg_match('@dpi@i', $name)) {
-            $x['bp.' . $name]['type'] = 'int';
+            'i.size'              => array('desc' => SORT_ORDER_SIZE,
+                                         'type' => 'intrange'
+                                   ),
+
+            'i.dimensions_width'  => array('desc' => SORT_ORDER_WIDTH,
+                                         'type' => 'intrange'
+                                   ),
+
+            'i.dimensions_height' => array('desc' => SORT_ORDER_HEIGHT,
+                                         'type' => 'intrange'
+                                   )
+        );
+
+        $addProp = explode(';', $serendipity['mediaProperties']);
+        foreach($addProp AS $prop) {
+            $parts = explode(':', $prop);
+            $name  = $parts[0];
+            $x['bp.' . $name] = array('desc' => (defined('MEDIA_PROPERTY_' . $name) ? constant('MEDIA_PROPERTY_' . $name) : serendipity_specialchars($name)));
+            if (preg_match('@date@i', $name)) {
+                $x['bp.' . $name]['type'] = 'date';
+            }
+            if (preg_match('@length@i', $name)) {
+                $x['bp.' . $name]['type'] = 'intrange';
+            }
+            if (preg_match('@dpi@i', $name)) {
+                $x['bp.' . $name]['type'] = 'int';
+            }
         }
     }
 
@@ -2128,19 +2225,19 @@ function serendipity_directoryACL(&$paths, $type = 'read') {
             if ($granted === false) {
                 // We are not allowed to access this element
                 if ($debug) {
-                    echo "ACL for " . $info['relpath'] . " DENIED.<br />\n";
+                    echo '<span class="msg_error"><span class="icon-attention-circled"></span> ACL for ' . $info['relpath'] . " DENIED.</span>";
                 }
                 unset($paths[$idx]);
             } else {
                 if ($debug) {
-                    echo "ACL for " . $info['relpath'] . " granted.<br />\n";
+                    echo '<span class="msg_success"><span class="icon-ok-circled"></span> ACL for ' . $info['relpath'] . " granted.</span>";
                 }
             }
         }
 
         if (count($paths) < $startCount) {
             if ($debug) {
-                echo "ACL denied all.<br />\n";
+                echo '<span class="msg_error"><span class="icon-attention-circled"></span> ACL denied all.</span>';
             }
             return false;
         }
@@ -2149,7 +2246,7 @@ function serendipity_directoryACL(&$paths, $type = 'read') {
     return true;
 }
 
- /**
+/**
  * Build the name of a thumbnail image file.
  *
  * @author MTG
@@ -2169,7 +2266,11 @@ function serendipity_getThumbNailPath($sRelativePath, $sName, $sExtension, $sThu
     if (isset($aTempArray['thumbnail_filename'])) {
         $sThumbNailPath = $aTempArray['thumbnail_filename'];
     } else {
-        $sThumbNailPath = $sRelativePath . $sName . (!empty($sThumbName) ? '.' . $sThumbName : '') . '.' . $sExtension;
+        if ($sExtension) {
+            $sThumbNailPath = $sRelativePath . $sName . (!empty($sThumbName) ? '.' . $sThumbName : '') . '.' . $sExtension;
+        } else {
+            $sThumbNailPath = $sRelativePath . $sName . (!empty($sThumbName) ? '.' . $sThumbName : '');
+        }
     }
 
     return $sThumbNailPath;
@@ -2231,7 +2332,7 @@ function &serendipity_getImageData($sRelativePath) {
  * @param  array    Associative array holding an array('image_id', 'target', 'created_thumbnail') that points to the uploaded media
  * @param  int      How many keyword checkboxes to display next to each other?
  * @param  boolean  Can existing data be modified?
- * @return boolean
+ * @return string   Generated HTML
  *
  */
 function serendipity_showPropertyForm(&$new_media, $keywordsPerBlock = 3, $is_edit = true) {
@@ -2248,7 +2349,7 @@ function serendipity_showPropertyForm(&$new_media, $keywordsPerBlock = 3, $is_ed
     if (isset($GLOBALS['image_selector_addvars']) && is_array($GLOBALS['image_selector_addvars'])) {
         // These variables may come from serendipity_admin_image_selector.php to show embedded upload form
         foreach($GLOBALS['image_selector_addvars'] AS $imgsel_key => $imgsel_val) {
-            $editform_hidden .= '          <input type="hidden" name="serendipity[' . htmlspecialchars($imgsel_key) . ']" value="' . htmlspecialchars($imgsel_val) . '" />' . "\n";
+            $editform_hidden .= '          <input type="hidden" name="serendipity[' . serendipity_specialchars($imgsel_key) . ']" value="' . serendipity_specialchars($imgsel_val) . '">' . "\n";
         }
     }
 
@@ -2272,13 +2373,13 @@ function serendipity_showPropertyForm(&$new_media, $keywordsPerBlock = 3, $is_ed
 
         serendipity_parseMediaProperties($dprops, $keywords, $show[$idx], $props, $keywordsPerBlock, $is_edit);
     }
-
     $smarty_vars = array(
         'is_edit'           => $is_edit,
         'editform_hidden'   => $editform_hidden,
         'keywordsPerBlock'  => $keywordsPerBlock,
         'keywords'          => $keywords,
-        'dprops'            => $dprops
+        'dprops'            => $dprops,
+        'case_add'          => is_array($new_media[0]['created_thumbnail'])     // created_thumbnail is only set when viewing properties after adding an image
     );
 
     return serendipity_showMedia(
@@ -2367,13 +2468,13 @@ function serendipity_parseMediaProperties(&$dprops, &$keywords, &$media, &$props
         }
         $val = serendipity_mediaTypeCast($parts[0], $props['base_property'][$parts[0]], true);
 
-        $propkey = htmlspecialchars($parts[0]) . $idx;
+        $propkey = serendipity_specialchars($parts[0]) . $idx;
 
         $media['base_property'][$propkey] = array(
-            'label' => htmlspecialchars(defined('MEDIA_PROPERTY_' . strtoupper($parts[0])) ? constant('MEDIA_PROPERTY_' . strtoupper($parts[0])) : $parts[0]),
+            'label' => serendipity_specialchars(defined('MEDIA_PROPERTY_' . strtoupper($parts[0])) ? constant('MEDIA_PROPERTY_' . strtoupper($parts[0])) : $parts[0]),
             'type'  => $type,
             'val'   => $val,
-            'title' => htmlspecialchars($parts[0])
+            'title' => serendipity_specialchars($parts[0])
         );
 
         if (!is_array($GLOBALS['IPTC'])) {
@@ -2462,13 +2563,13 @@ function serendipity_parseMediaProperties(&$dprops, &$keywords, &$media, &$props
     }
 
     if ($keywordsPerBlock > 0) {
-        $rows = ceil(count($keywords) / $keywordsPerBlock);
+        $rows  = ceil(count($keywords) / $keywordsPerBlock);
         for($i = 0; $i < $rows; $i++) {
             for ($j = 0; $j < $keywordsPerBlock; $j++) {
                 $kidx = ($i*$keywordsPerBlock) + $j;
                 if (isset($keywords[$kidx])) {
                     $media['base_keywords'][$i][$j] = array(
-                        'name'      => htmlspecialchars($keywords[$kidx]),
+                        'name'      => serendipity_specialchars($keywords[$kidx]),
                         'selected'  => isset($props['base_keyword'][$keywords[$kidx]]) ? true : false
                     );
                 } else {
@@ -2613,7 +2714,7 @@ function serendipity_parsePropertyForm() {
     }
 
     $array = array(
-        'image_id'          => $serendipity['POST']['mediaProperties'][0]['image_id'],
+        'image_id' => $serendipity['POST']['mediaProperties'][0]['image_id'],
     );
 
     return $array;
@@ -2689,7 +2790,7 @@ function serendipity_checkPropertyAccess(&$new_media, &$additional, $mode = 'rea
  * Prepare a media item for showing
  *
  * @param  array    Array of image metadata
- * @param  string   URL for maintenance tasks
+ * @param  string   URL for maintenance tasks, set when using the ML for inserting images
  * @return bool
  *
  */
@@ -2701,9 +2802,13 @@ function serendipity_prepareMedia(&$file, $url = '') {
         $full_perm = serendipity_checkPermission('adminImagesMaintainOthers');
     }
 
-    $sThumbSource           = serendipity_getThumbNailPath($file['path'], $file['name'], $file['extension'], $file['thumbnail_name']);
-    $file['full_thumb']     = $serendipity['serendipityPath'] . $serendipity['uploadPath'] . $sThumbSource;
-    $file['full_thumbHTTP'] = $serendipity['serendipityHTTPPath'] . $serendipity['uploadHTTPPath'] . $sThumbSource;
+    $sThumbSource = serendipity_getThumbNailPath($file['path'], $file['name'], $file['extension'], $file['thumbnail_name']);
+    if (! $file['hotlink']) {
+        $file['full_thumb']     = $serendipity['serendipityPath'] . $serendipity['uploadPath'] . $sThumbSource;
+        $file['full_thumbHTTP'] = $serendipity['serendipityHTTPPath'] . $serendipity['uploadHTTPPath'] . $sThumbSource;
+    }
+
+    $file['url'] = $url;
 
     if ($file['hotlink']) {
         $file['full_file']  = $file['path'];
@@ -2766,31 +2871,17 @@ function serendipity_prepareMedia(&$file, $url = '') {
     if ($file['is_image'] && file_exists($file['full_thumb'])) {
         $file['thumbWidth']  = $file['dim'][0];
         $file['thumbHeight'] = $file['dim'][1];
-        $file['preview'] .= '<img src="' . $serendipity['serendipityHTTPPath'] . $serendipity['uploadHTTPPath'] . $sThumbSource . '" border="0" title="' . $file['path'] . $file['name'] . '" alt="'. $file['realname'] . '" />';
-        if ($url) {
-            $file['preview_url'] = $url .'&amp;serendipity[image]='. $file['id'];
-            $file['preview'] = '<a href="'. $file['preview_url'] .'">'. $file['preview'] .'</a>';
-        }
     } elseif ($file['is_image'] && $file['hotlink']) {
         $sizes = serendipity_calculate_aspect_size($file['dimensions_width'], $file['dimensions_height'], $serendipity['thumbSize'], $serendipity['thumbConstraint']);
         $file['thumbWidth']  = $sizes[0];
         $file['thumbHeight'] = $sizes[1];
-        $file['preview'] .= '<img src="' . $file['path'] . '" width="' . $sizes[0] . '" height="' . $sizes[1] . '" border="0" title="' . $file['path'] . '" alt="'. $file['realname'] . '" />';
-        if ($url) {
-            $file['preview_url'] = $url .'&amp;serendipity[image]='. $file['id'];
-            $file['preview'] = '<a href="'. $file['preview_url'] .'">'. $file['preview'] .'</a>';
-        }
     /* If it's not an image, or the thumbnail does not exist */
     } else {
         $mimeicon = serendipity_getTemplateFile('admin/img/mime_' . preg_replace('@[^a-z0-9\-\_]@i', '-', $file['mime']) . '.png');
         if (!$mimeicon) {
             $mimeicon = serendipity_getTemplateFile('admin/img/mime_unknown.png');
         }
-        $file['preview'] .= '<img src="'. $mimeicon .'" title="' . $file['path'] . $file['name'] . ' (' . $file['mime'] . ')" alt="'. $file['mime'] .'" /><br /><span style="font-weight: bold; font-size: 8pt">- ' . (($file['hotlink']) ? MEDIA_HOTLINKED : $file['mime']) .' -</span>';
-        if ($url) {
-            $file['preview_url'] = $url .'&amp;serendipity[image]='. $file['id'];
-            $file['preview'] .= '<br /><a href="' . $file['preview_url'] . '">' . $file['name'] . (empty($file['extension']) ? '' : '.' . $file['extension']) . '</a>';
-        }
+        $file['mimeicon'] = $mimeicon;
     }
 
     $file['popupWidth']   = ($file['is_image'] ? ($file['dimensions_width']  + 20) : 600);
@@ -2812,28 +2903,37 @@ function serendipity_prepareMedia(&$file, $url = '') {
  * @param  int      how many media items to display per row
  * @param  boolean  Enclose within a table cell?
  * @param  array    Additional Smarty variables
- * @param  boolean  If TRUE, will echo Smarty output.
- * @return string   Smarty block name
+ * @return string   Generated HTML
  *
  */
-function serendipity_showMedia(&$file, &$paths, $url = '', $manage = false, $lineBreak = 3, $enclose = true, $smarty_vars = array(), $smarty_display = true) {
+function serendipity_showMedia(&$file, &$paths, $url = '', $manage = false, $lineBreak = 3, $enclose = true, $smarty_vars = array()) {
     global $serendipity;
 
     $form_hidden = '';
-    foreach($serendipity['GET'] AS $g_key => $g_val) {
-        if (!is_array($g_val) && $g_key != 'page') {
-            $form_hidden .= '<input type="hidden" name="serendipity[' . $g_key . ']" value="' . htmlspecialchars($g_val) . '" />';
+    // do not add, if not for the default media list form
+    if (($serendipity['GET']['adminAction'] == 'default' || empty($serendipity['GET']['adminAction'])) && !$serendipity['GET']['fid']) {
+        foreach($serendipity['GET'] AS $g_key => $g_val) {
+            // do not add token, since this is assigned separately to properties and list forms
+            if (!is_array($g_val) && $g_key != 'page' && $g_key != 'token') {
+                $form_hidden .= '        <input type="hidden" name="serendipity[' . $g_key . ']" value="' . serendipity_specialchars($g_val) . '">'."\n";
+            }
         }
     }
 
-    serendipity_smarty_init();
+    if (!is_object($serendipity['smarty'])) {
+        serendipity_smarty_init();
+    }
+    $order_fields = serendipity_getImageFields();
+    // reset filename for building template filters, since this is hardcoded as 'only_filename'
+    unset($order_fields['i.name']);
+
     $media = array(
         'manage'            => $manage,
         'lineBreak'         => $lineBreak,
         'lineBreakP'        => round(1/$lineBreak*100),
         'url'               => $url,
         'enclose'           => $enclose,
-        'zoomIMG'           => serendipity_getTemplateFile('admin/img/big_zoom.png'),
+/*        'zoomIMG'           => serendipity_getTemplateFile('admin/img/big_zoom.png'),
         'renameIMG'         => serendipity_getTemplateFile('admin/img/big_rename.png'),
         'resizeIMG'         => serendipity_getTemplateFile('admin/img/big_resize.png'),
         'rotatecwIMG'       => serendipity_getTemplateFile('admin/img/big_rotate_cw.png'),
@@ -2841,24 +2941,29 @@ function serendipity_showMedia(&$file, &$paths, $url = '', $manage = false, $lin
         'configureIMG'      => serendipity_getTemplateFile('admin/img/configure.png'),
         'deleteIMG'         => serendipity_getTemplateFile('admin/img/big_delete.png'),
         'prevIMG'           => serendipity_getTemplateFile('admin/img/previous.png'),
-        'nextIMG'           => serendipity_getTemplateFile('admin/img/next.png'),
+        'nextIMG'           => serendipity_getTemplateFile('admin/img/next.png'),*/
         'token'             => serendipity_setFormToken(),
         'form_hidden'       => $form_hidden,
-        'blimit_path'       => empty($smarty_vars['limit_path']) ? '':basename($smarty_vars['limit_path']),
+        'blimit_path'       => empty($smarty_vars['limit_path']) ? '' : basename($smarty_vars['limit_path']),
         'only_path'         => $serendipity['GET']['only_path'],
         'only_filename'     => $serendipity['GET']['only_filename'],
         'sortorder'         => $serendipity['GET']['sortorder'],
         'keywords_selected' => $serendipity['GET']['keywords'],
         'filter'            => $serendipity['GET']['filter'],
-        'sort_order'        => serendipity_getImageFields(),
+        'sort_order'        => $order_fields,
+        'simpleFilters'     => $serendipity['simpleFilters'],
+        'hideSubdirFiles'   => $serendipity['GET']['hideSubdirFiles'],
         'authors'           => serendipity_fetchUsers(),
         'sort_row_interval' => array(8, 16, 50, 100),
         'nr_files'          => count($file),
         'keywords'          => explode(';', $serendipity['mediaKeywords']),
+        'thumbSize'         => $serendipity['thumbSize'],
+        'sortParams'        => array('perpage', 'order', 'ordermode')
     );
 
     $media = array_merge($media, $smarty_vars);
     $media['files'] =& $file;
+
     if (count($paths) > 0) {
         $media['paths'] =& $paths;
     } else {
@@ -2869,19 +2974,11 @@ function serendipity_showMedia(&$file, &$paths, $url = '', $manage = false, $lin
 
     if ($enclose) {
         serendipity_smarty_fetch('MEDIA_ITEMS', 'admin/media_items.tpl');
-        $block = 'admin/media_pane.tpl';
-        if ($smarty_display) {
-            $serendipity['smarty']->display(serendipity_getTemplateFile('admin/media_pane.tpl', 'serendipityPath'));
-        }
+        return serendipity_smarty_show(serendipity_getTemplateFile('admin/media_pane.tpl', 'serendipityPath'));
     } else {
         serendipity_smarty_fetch('MEDIA_ITEMS', 'admin/media_items.tpl');
-        $block = 'admin/media_properties.tpl';
-        if ($smarty_display) {
-            $serendipity['smarty']->display(serendipity_getTemplateFile('admin/media_properties.tpl', 'serendipityPath'));
-        }
+        return serendipity_smarty_show(serendipity_getTemplateFile('admin/media_properties.tpl', 'serendipityPath'));
     }
-
-    return $block;
 }
 
 /**
@@ -3060,14 +3157,14 @@ function &serendipity_getMetaData($file, &$info) {
 
     static $ExifFields = array(
         'IFD0' => array(
-            'Make'          => array('type' => 'text',  'name' => 'CameraMaker'),
-            'Model'         => array('type' => 'text',  'name' => 'CameraModel'),
-            'Orientation'   => array('type' => 'or',    'name' => 'Orientation'),
-            'XResolution'   => array('type' => 'math',  'name' => 'XResolution'),
-            'YResolution'   => array('type' => 'math',  'name' => 'YResolution'),
-            'Software'      => array('type' => 'text',  'name' => 'Software'),
-            'DateTime'      => array('type' => 'date2', 'name' => 'DateCreated'),
-            'Artist'        => array('type' => 'text',  'name' => 'Creator'),
+            'Make'         => array('type' => 'text',  'name' => 'CameraMaker'),
+            'Model'        => array('type' => 'text',  'name' => 'CameraModel'),
+            'Orientation'  => array('type' => 'or',    'name' => 'Orientation'),
+            'XResolution'  => array('type' => 'math',  'name' => 'XResolution'),
+            'YResolution'  => array('type' => 'math',  'name' => 'YResolution'),
+            'Software'     => array('type' => 'text',  'name' => 'Software'),
+            'DateTime'     => array('type' => 'date2', 'name' => 'DateCreated'),
+            'Artist'       => array('type' => 'text',  'name' => 'Creator'),
         ),
 
         'EXIF' => array(
@@ -3090,33 +3187,33 @@ function &serendipity_getMetaData($file, &$info) {
     );
 
     static $xmpPatterns = array(
-    'tiff:Orientation'              => array('type' => 'or',   'name' => 'Orientation'),
-    'tiff:XResolution'              => array('type' => 'math', 'name' => 'XResolution'),
-    'tiff:YResolution'              => array('type' => 'math', 'name' => 'YResolution'),
-    'tiff:Make'                     => array('type' => 'text', 'name' => 'CameraMaker'),
-    'tiff:Model'                    => array('type' => 'text', 'name' => 'CameraModel'),
-    'xap:ModifyDate'                => array('type' => 'date', 'name' => 'DateModified'),
-    'xap:CreatorTool'               => array('type' => 'text', 'name' => 'Software'),
-    'xap:CreateDate'                => array('type' => 'date', 'name' => 'DateCreated'),
-    'xap:MetadataDate'              => array('type' => 'date', 'name' => 'DateMetadata'),
+        'tiff:Orientation'           => array('type' => 'or',   'name' => 'Orientation'),
+        'tiff:XResolution'           => array('type' => 'math', 'name' => 'XResolution'),
+        'tiff:YResolution'           => array('type' => 'math', 'name' => 'YResolution'),
+        'tiff:Make'                  => array('type' => 'text', 'name' => 'CameraMaker'),
+        'tiff:Model'                 => array('type' => 'text', 'name' => 'CameraModel'),
+        'xap:ModifyDate'             => array('type' => 'date', 'name' => 'DateModified'),
+        'xap:CreatorTool'            => array('type' => 'text', 'name' => 'Software'),
+        'xap:CreateDate'             => array('type' => 'date', 'name' => 'DateCreated'),
+        'xap:MetadataDate'           => array('type' => 'date', 'name' => 'DateMetadata'),
 
-    'exif:ExposureTime'             => array('type' => 'math',  'name' => 'ExposureTime'),
-    'exif:ApertureValue'            => array('type' => 'math',  'name' => 'ApertureValue'),
-    'exif:MaxApertureValue'         => array('type' => 'math',  'name' => 'MaxApertureValue'),
-    'exif:ISOSpeedRatings'          => array('type' => 'text',  'name' => 'ISOSpeedRatings'),
-    'exif:DateTimeOriginal'         => array('type' => 'date',  'name' => 'DateCreated'),
-    'exif:MeteringMode'             => array('type' => 'text',  'name' => 'MeteringMode'),
-    'exif:FNumber'                  => array('type' => 'math',  'name' => 'FNumber'),
-    'exif:ExposureProgram'          => array('type' => 'text',  'name' => 'ExposureProgram'),
-    'exif:FocalLength'              => array('type' => 'math',  'name' => 'FocalLength'),
-    'exif:WhiteBalance'             => array('type' => 'text',  'name' => 'WhiteBalance'),
-    'exif:DigitalZoomRatio'         => array('type' => 'math',  'name' => 'DigitalZoomRatio'),
-    'exif:FocalLengthIn35mmFilm'    => array('type' => 'text',  'name' => 'FocalLengthIn35mmFilm'),
-    'exif:Fired'                    => array('type' => 'text',  'name' => 'FlashFired'),
-    'exif:RedEyeMode'               => array('type' => 'text',  'name' => 'RedEyeMode'),
+        'exif:ExposureTime'          => array('type' => 'math',  'name' => 'ExposureTime'),
+        'exif:ApertureValue'         => array('type' => 'math',  'name' => 'ApertureValue'),
+        'exif:MaxApertureValue'      => array('type' => 'math',  'name' => 'MaxApertureValue'),
+        'exif:ISOSpeedRatings'       => array('type' => 'text',  'name' => 'ISOSpeedRatings'),
+        'exif:DateTimeOriginal'      => array('type' => 'date',  'name' => 'DateCreated'),
+        'exif:MeteringMode'          => array('type' => 'text',  'name' => 'MeteringMode'),
+        'exif:FNumber'               => array('type' => 'math',  'name' => 'FNumber'),
+        'exif:ExposureProgram'       => array('type' => 'text',  'name' => 'ExposureProgram'),
+        'exif:FocalLength'           => array('type' => 'math',  'name' => 'FocalLength'),
+        'exif:WhiteBalance'          => array('type' => 'text',  'name' => 'WhiteBalance'),
+        'exif:DigitalZoomRatio'      => array('type' => 'math',  'name' => 'DigitalZoomRatio'),
+        'exif:FocalLengthIn35mmFilm' => array('type' => 'text',  'name' => 'FocalLengthIn35mmFilm'),
+        'exif:Fired'                 => array('type' => 'text',  'name' => 'FlashFired'),
+        'exif:RedEyeMode'            => array('type' => 'text',  'name' => 'RedEyeMode'),
 
-    'dc:title'                      => array('type' => 'rdf',   'name' => 'Title'),
-    'dc:creator'                    => array('type' => 'rdf',   'name' => 'Creator'),
+        'dc:title'                   => array('type' => 'rdf',   'name' => 'Title'),
+        'dc:creator'                 => array('type' => 'rdf',   'name' => 'Creator'),
     );
 
     $ret = array();
@@ -3225,7 +3322,9 @@ function serendipity_imageAppend(&$tfile, &$target, $dir, $echo = true) {
     $target = $dir . $tfile;
 
     if ($echo) {
-        printf(FILENAME_REASSIGNED . '<br />', htmlspecialchars($tfile));
+        echo '<span class="msg_success"><span class="icon-ok-circled"></span> <strong>';
+        printf(FILENAME_REASSIGNED . '<br />', serendipity_specialchars($tfile));
+        echo "</strong></span>\n";
     }
     return $realname;
 }
@@ -3242,7 +3341,9 @@ function serendipity_checkMediaSize($file) {
 
     if (!empty($serendipity['maxFileSize'])) {
         if (filesize($file) > $serendipity['maxFileSize']) {
+            echo '<span class="msg_error"><span class="icon-attention-circled"></span> ';
             printf(MEDIA_UPLOAD_SIZEERROR . '<br />', (int)$serendipity['maxFileSize']);
+            echo "</span>\n";
             return false;
         }
     }
@@ -3255,14 +3356,18 @@ function serendipity_checkMediaSize($file) {
 
         if (!empty($serendipity['maxImgWidth'])) {
             if ($dim[0] > $serendipity['maxImgWidth']) {
+                echo '<span class="msg_error"><span class="icon-attention-circled"></span> ';
                 printf(MEDIA_UPLOAD_DIMERROR . '<br />', (int)$serendipity['maxImgWidth'], (int)$serendipity['maxImgHeight']);
+                echo "</span>\n";
                 return false;
             }
         }
 
         if (!empty($serendipity['maxImgHeight'])) {
             if ($dim[1] > $serendipity['maxImgHeight']) {
+                echo '<span class="msg_error"><span class="icon-attention-circled"></span> ';
                 printf(MEDIA_UPLOAD_DIMERROR . '<br />', (int)$serendipity['maxImgWidth'], (int)$serendipity['maxImgHeight']);
+                echo "</span>\n";
                 return false;
             }
         }
@@ -3274,36 +3379,66 @@ function serendipity_checkMediaSize($file) {
 /**
  * Moves a media directory
  *
- * @param  string   The old directory
+ * @param  string   The old directory.
+ *                  This can be NULL or (an empty / a) STRING for re-name/multiCheck move comparison events
  * @param  string   The new directory
  * @param  string   The type of what to remove (dir|file|filedir)
  * @param  string   An item id of a file
+ * @param  array    Result of serendipity_fetchImageFromDatabase($id)
  * @return boolean
  *
  */
 function serendipity_moveMediaDirectory($oldDir, $newDir, $type = 'dir', $item_id = null, $file = null) {
     global $serendipity;
 
-    $real_oldDir = $serendipity['serendipityPath'] . $serendipity['uploadPath'] . $oldDir;
-    $real_newDir = $serendipity['serendipityPath'] . $serendipity['uploadPath'] . $newDir;
+    // paranoid case for updating an old image id entry - else we have a new entry incrementary
+    if (is_null($item_id) && isset($file['id']) && $file['id'] > 0) $item_id = $file['id'];
 
+    if (!$item_id || $item_id < 1) {
+        // only print message if not posting a case_directoryEdit submit
+        if (empty($serendipity['POST']['save'])) {
+            echo '<span class="msg_error"><span class="icon-attention-circled"></span> ';
+            printf(ERROR_FILE_NOT_EXISTS, $item_id);
+            echo "</span>\n";
+            return false;
+        }
+    }
+
+    // Prepare data for the database, any hooks and the real file move, by case AREA:
+    //   DIR     = Media directory form edit,
+    //   FILE    = File rename or File bulk move,
+    //   FILEDIR = Media properties form edit
+
+    // images.inc case 'directoryEdit', which is ML Directories form, via ML case 'directorySelect'
     if ($type == 'dir') {
+
+        $real_oldDir = $serendipity['serendipityPath'] . $serendipity['uploadPath'] . $oldDir;
+        $real_newDir = $serendipity['serendipityPath'] . $serendipity['uploadPath'] . $newDir;
+
         if (!is_dir($real_oldDir)) {
-            printf(ERROR_FILE_NOT_EXISTS . '<br />', $oldDir);
+            echo '<span class="msg_error"><span class="icon-attention-circled"></span> ';
+            printf(ERROR_FILE_NOT_EXISTS, $oldDir);
+            echo "</span>\n";
             return false;
         }
 
         if (is_dir($real_newDir)) {
-            printf(ERROR_FILE_EXISTS . '<br />', $newDir);
+            echo '<span class="msg_error"><span class="icon-attention-circled"></span> ';
+            printf(ERROR_FILE_EXISTS, $newDir);
+            echo "</span>\n";
             return false;
         }
 
         if (!rename($real_oldDir, $real_newDir)) {
-            printf(MEDIA_DIRECTORY_MOVE_ERROR . '<br />', $newDir);
+            echo '<span class="msg_error"><span class="icon-attention-circled"></span> ';
+            printf(MEDIA_DIRECTORY_MOVE_ERROR, $newDir);
+            echo "</span>\n";
             return false;
         }
 
-        printf(MEDIA_DIRECTORY_MOVED . '<br />', $newDir);
+        echo '<span class="msg_success"><span class="icon-ok-circled"></span> ';
+        printf(MEDIA_DIRECTORY_MOVED, $newDir);
+        echo "</span>\n";
 
         $dirs = serendipity_db_query("SELECT id, path
                                         FROM {$serendipity['dbPrefix']}images
@@ -3335,146 +3470,373 @@ function serendipity_moveMediaDirectory($oldDir, $newDir, $type = 'dir', $item_i
                                          AND artifact_index = '" . serendipity_db_escape_string($dir['artifact_index']) . "'");
             }
         }
-    }
+        // hook into staticpage for the renaming regex replacements
+        // first and last two are null - only differ by being set already by their default var for the last two
+        $renameValues = array(array(
+            'from'    => null,
+            'to'      => null,
+            'thumb'   => $serendipity['thumbSuffix'],
+            'fthumb'  => null,
+            'oldDir'  => $oldDir,
+            'newDir'  => $newDir,
+            'type'    => $type,
+            'item_id' => $item_id,
+            'file'    => $file
+        ));
+        // Changing a ML directory via directoryEdit needs to run through entries too!
+        serendipity_plugin_api::hook_event('backend_media_rename', $renameValues);
 
-    if ($type == 'file') {
+    // case 'rename' OR 'multidelete' (bulk multimove)
+    } else if ($type == 'file') {
+
+        // active in mean of eval or executable
         if (serendipity_isActiveFile(basename($newDir))) {
-            printf(ERROR_FILE_FORBIDDEN, htmlspecialchars($newDir));
+            echo '<span class="msg_error"><span class="icon-attention-circled"></span> ';
+            printf(ERROR_FILE_FORBIDDEN, serendipity_specialchars($newDir));
+            echo "</span>\n";
             return false;
         }
-
-        if ($file['hotlink']) {
-            serendipity_updateImageInDatabase(array('realname' => $newDir, 'name' => $newDir), $item_id);
+        if (!empty($file['hotlink'])) {
+            $newHotlinkFile = (false === strpos($newDir, $file['extension'])) ? $newDir . (empty($file['extension']) ? '' : '.' . $file['extension']) : $newDir;
+            serendipity_updateImageInDatabase(array('realname' => $newHotlinkFile, 'name' => $newDir), $item_id);
         } else {
-            $file_new = $file['path'] . $newDir . (empty($file['extension']) ? '' : '.');
-            $file_old = $file['path'] . $file['name'] . (empty($file['extension']) ? '' : '.');
+            $parts = pathinfo($newDir);
 
-            $newfile = $serendipity['serendipityPath'] . $serendipity['uploadPath'] . $file_new . $file['extension'];
-            $oldfile = $serendipity['serendipityPath'] . $serendipity['uploadPath'] . $file_old . $file['extension'];
-            if ($newDir != '' && file_exists($oldfile) && !file_exists($newfile)) {
-                $renameValues = array(array(
-                    'from'   => $oldfile,
-                    'to'     => $newfile,
-                    'thumb'  => $serendipity['thumbSuffix'],
-                    'fthumb' => $file['thumbnail_name'],
-                    'oldDir' => $oldDir,
-                    'newDir' => $newDir,
-                    'type'   => $type,
-                    'item_id'=> $item_id,
-                    'file'   => $file
-                ));
+            // build new, thumb and old file names relative to Serendipity root path
+            if ($oldDir === null && $newDir != 'uploadRoot') {
 
-                serendipity_plugin_api::hook_event('backend_media_rename', $renameValues);
+                // case single file re-name event (newDir = newName is passed without path!)
+                $newName = $newDir; // for better readability
+                // do we really need this?
+                if ($parts['extension'] != $file['extension']) {
+                    $file_new = $file['path'] . $newName . (empty($file['extension']) ? '' : '.' . $file['extension']);
+                    $file_old = $file['path'] . $file['name'] . (empty($file['extension']) ? '' : '.' . $file['extension']);
+                } else {
+                    $file_new = $file['path'] . $newName;
+                    $file_old = $file['path'] . $file['name'];
+                }
+                // build full thumb file names
+                $file_newthumb = $file['path'] . $newName . (!empty($file['thumbnail_name']) ? '.' . $file['thumbnail_name'] : '') . (empty($file['extension']) ? '' : '.' . $file['extension']);
+                $file_oldthumb = $file['path'] . $file['name'] . (!empty($file['thumbnail_name']) ? '.' . $file['thumbnail_name'] : '') . (empty($file['extension']) ? '' : '.' . $file['extension']);
+                $newThumb = $serendipity['serendipityPath'] . $serendipity['uploadPath'] . $file_newthumb;
+                $oldThumb = $serendipity['serendipityPath'] . $serendipity['uploadPath'] . $file_oldthumb;
 
-                // Rename file
-                rename($renameValues[0]['from'], $renameValues[0]['to']);
+            } else {
 
-                foreach($renameValues AS $renameData) {
-                    // Rename thumbnail
-                    rename($serendipity['serendipityPath'] . $serendipity['uploadPath'] . $file['path'] . $file['name'] . (!empty($renameData['fthumb']) ? '.' . $renameData['fthumb'] : '') . (empty($file['extension']) ? '' : '.' . $file['extension']),
-                           $serendipity['serendipityPath'] . $serendipity['uploadPath'] . $file['path'] . $newDir . '.' . $renameData['thumb'] . (empty($file['extension']) ? '' : '.' . $file['extension']));
+                // case bulkmove event (newDir is passed inclusive path! and normally w/o the filename, but we better check this though)
+                $newDir = ($newDir == 'uploadRoot') ? '' : $newDir; // Take care: remove temporary 'uploadRoot' string, in case of moving a subdir file into upload root by bulkmove
+                $_newDir = str_replace($file['name'] . (empty($file['extension']) ? '' : '.' . $file['extension']), '', $newDir);
+                // do we really need this?
+                if ($parts['extension'] != $file['extension']) {
+                    $file_new = $_newDir . $file['name'] . (empty($file['extension']) ? '' : '.' . $file['extension']);
+                    $file_old = $file['path'] . $file['name'] . (empty($file['extension']) ? '' : '.' . $file['extension']);
+                } else {
+                    $file_new = $_newDir . $file['name'];
+                    $file_old = $file['path'] . $file['name'];
                 }
 
-                serendipity_updateImageInDatabase(array('thumbnail_name' => $renameValues[0]['thumb'], 'realname' => $newDir, 'name' => $newDir), $item_id);
-                $oldDir = $file_old;
-                $newDir = $file_new;
-                $real_oldDir = $serendipity['serendipityPath'] . $serendipity['uploadPath'] . $oldDir;
-                $real_newDir = $serendipity['serendipityPath'] . $serendipity['uploadPath'] . $newDir;
-                // Forward user to overview (we don't want the user's back button to rename things again)
+            }
+
+            // build full origin and new file path names
+            $newfile = $serendipity['serendipityPath'] . $serendipity['uploadPath'] . $file_new;
+            $oldfile = $serendipity['serendipityPath'] . $serendipity['uploadPath'] . $file_old;
+
+            // check files existence
+            if (file_exists($oldfile) && !file_exists($newfile)) {
+
+                // for the paranoid, securely check these build filenames again, since we really need a real file set to continue!
+                $newparts = pathinfo($newfile);
+                if ($newparts['dirname'] == '.' || (!empty($file['extension']) && empty($newparts['extension'])) || empty($newparts['filename'])) {
+                    // error new file build mismatch
+                    echo '<span class="msg_error"><span class="icon-attention-circled"></span> ' . $newfile . ' ' . ERROR_SOMETHING . "</span>\n";
+                    return false;
+                }
+
+                // Case re-name event, keeping a possible moved directory name for a single file
+                if ($oldDir === null) {
+                    // Move the origin file
+                    @rename($oldfile, $newfile);
+                    // do not re-name again, if item has no thumb name (eg zip object file case) and old thumb actually exists (possible missing pdf preview image on WinOS with IM)
+                    if (($newThumb != $newfile) && file_exists($oldThumb)) {
+                        // the thumb file
+                        @rename($oldThumb, $newThumb); // Keep both rename() error disabled, since we have to avoid any output in renaiming cases
+                    }
+
+                    // hook into staticpage for the renaming regex replacements
+                    $renameValues = array(array(
+                        'from'    => $oldfile,
+                        'to'      => $newfile,
+                        'thumb'   => $serendipity['thumbSuffix'],
+                        'fthumb'  => $file['thumbnail_name'],
+                        'oldDir'  => $oldDir,
+                        'newDir'  => $newDir,
+                        'type'    => $type,
+                        'item_id' => $item_id,
+                        'file'    => $file
+                    ));
+                    serendipity_plugin_api::hook_event('backend_media_rename', $renameValues);
+
+                    // renaming filenames has to update mediaproperties if set
+                    $q = "UPDATE {$serendipity['dbPrefix']}mediaproperties
+                             SET value = '" . serendipity_db_escape_string($newName . (empty($file['extension']) ? '' : '.' . $file['extension'])) . "'
+                           WHERE mediaid = " . (int)$item_id . ' AND property = "realname" AND value = "' . $file['realname'] . '"';
+                    serendipity_db_query($q);
+                    $q = "UPDATE {$serendipity['dbPrefix']}mediaproperties
+                             SET value = '" . serendipity_db_escape_string($newName) . "'
+                           WHERE mediaid = " . (int)$item_id . ' AND property = "name" AND value = "' . $file['name'] .'"';
+                    serendipity_db_query($q);
+                    $q = "UPDATE {$serendipity['dbPrefix']}mediaproperties
+                             SET value = '" . serendipity_db_escape_string($newName . (empty($file['extension']) ? '' : '.' . $file['extension'])) . "'
+                           WHERE mediaid = " . (int)$item_id . ' AND property = "TITLE" AND value = "' . $file['realname'] .'"';
+                    serendipity_db_query($q);
+
+                    serendipity_updateImageInDatabase(array('thumbnail_name' => $renameValues[0]['thumb'], 'realname' => $newName . (empty($file['extension']) ? '' : '.' . $file['extension']), 'name' => $newName), $item_id);
+
+                    // Forward user to overview (we don't want the user's back button to rename things again) ?? What does this do? Check!!!
+                }
+
+                // Case Move or Bulkmove event
+                // newDir can now be used for the uploads directory root path too
+                // Do not allow an empty string or not set newDir for the build call so we do not conflict with rename calls, which are single files only and is done above
+                // BULKMOVE vars oldfile and newfile are fullpath based see above
+                elseif (!empty($newfile)) {
+
+                    if ($newDir == 'uploadRoot') $newDir = ''; // now move back into root of /uploads dir
+
+                    // hook into staticpage for the renaming regex replacements
+                    $renameValues = array(array(
+                        'from'    => $oldfile,
+                        'to'      => $newfile,
+                        'thumb'   => $serendipity['thumbSuffix'],
+                        'fthumb'  => $file['thumbnail_name'],
+                        'oldDir'  => $oldDir,
+                        'newDir'  => $newDir,
+                        'type'    => $type,
+                        'item_id' => $item_id,
+                        'file'    => $file
+                    ));
+                    serendipity_plugin_api::hook_event('backend_media_rename', $renameValues); // eg. for staticpage entries path regex replacements
+
+                    // Move the origin file
+                    try { rename($oldfile, $newfile); } catch (Exception $e) { echo '<span class="msg_error"><span class="icon-attention-circled"></span> ' . ERROR_SOMETHING . ': '.$e->getMessage() . "</span>\n"; }
+
+                    // do still need this? YES, it is definitely false, so we would not need the ternary
+                    // Rename newDir + file name in case it is called by the Bulk Move and not by rename
+                    $newDirFile = (false === strpos($newDir, $file['name'])) ? $newDir . $file['name'] : $newDir;
+
+                    foreach($renameValues AS $renameData) {
+                        // build full thumb file names
+                        $thisOldThumb = $serendipity['serendipityPath'] . $serendipity['uploadPath'] . $renameData['oldDir'] . $file['name'] . (!empty($renameData['fthumb']) ? '.' . $renameData['fthumb'] : '.' . $serendipity['thumbSuffix']) . (empty($file['extension']) ? '' : '.' . $file['extension']);
+                        $thisNewThumb = $serendipity['serendipityPath'] . $serendipity['uploadPath'] . $newDirFile . (!empty($file['thumbnail_name']) ? '.' . $renameData['thumb'] : '.' . $serendipity['thumbSuffix']) . (empty($file['extension']) ? '' : '.' . $file['extension']);
+                        // Check for existent old thumb files first, to not need to disable rename by @rename(), then  move the thumb file and catch any wrong renaming
+                        if (($thisNewThumb != $newfile) && file_exists($thisOldThumb)) {
+                            // the thumb file and catch any wrong renaming
+                            try { rename($thisOldThumb, $thisNewThumb); } catch (Exception $e) { echo '<span class="msg_error"><span class="icon-attention-circled"></span> ' . ERROR_SOMETHING . ': '.$e->getMessage() . "</span>\n"; }
+                        }
+                    }
+
+                    serendipity_updateImageInDatabase(array('thumbnail_name' => $renameValues[0]['thumb'], 'path' => $newDir, 'realname' => $file['realname'], 'name' => $file['name']), $item_id);
+                    // Forward user to overview (we don't want the user's back button to rename things again)
+                } else {
+                    //void
+                }
             } else {
                 if (!file_exists($oldfile)) {
-                    echo ERROR_FILE_NOT_EXISTS;
+                    echo '<span class="msg_error"><span class="icon-attention-circled"></span> ' . ERROR_FILE_NOT_EXISTS . "</span>\n";
                 } elseif (file_exists($newfile)) {
-                    echo ERROR_FILE_EXISTS;
+                    echo '<span class="msg_error"><span class="icon-attention-circled"></span> ' . ERROR_FILE_EXISTS . "</span>\n";
                 } else {
-                    echo ERROR_SOMETHING;
+                    echo '<span class="msg_error"><span class="icon-attention-circled"></span> ' . ERROR_SOMETHING . "</span>\n";
                 }
 
                 return false;
             }
         }
+
+    // used solely by serendipity_parsePropertyForm base_properties when changing the file selected path within mediaproperties form
     } elseif ($type == 'filedir') {
+
         serendipity_db_query("UPDATE {$serendipity['dbPrefix']}images
                                  SET path = '" . serendipity_db_escape_string($newDir) . "'
                                WHERE id   = " . (int)$item_id);
         $pick = serendipity_db_query("SELECT * FROM  {$serendipity['dbPrefix']}images
                                WHERE id   = " . (int)$item_id, true, 'assoc');
 
-        // Move thumbs
+        // Move thumbs - Rebuild full origin and new file path names by the new picked file array
         $oldfile = $serendipity['serendipityPath'] . $serendipity['uploadPath'] . $oldDir . $pick['name'] . (empty($pick['extension']) ? '' : '.' . $pick['extension']);
         $newfile = $serendipity['serendipityPath'] . $serendipity['uploadPath'] . $newDir . $pick['name'] . (empty($pick['extension']) ? '' : '.' . $pick['extension']);
 
+        // hook into staticpage for the renaming regex replacements
         $renameValues = array(array(
-            'from'   => $oldfile,
-            'to'     => $newfile,
-            'thumb'  => $serendipity['thumbSuffix'],
-            'fthumb' => $pick['thumbnail_name'],
-            'oldDir' => $oldDir,
-            'newDir' => $newDir,
-            'type'   => $type,
-            'item_id'=> $item_id,
-            'file'   => $file,
-            'name'   => $pick['name']
+            'from'    => $oldfile,
+            'to'      => $newfile,
+            'thumb'   => $serendipity['thumbSuffix'],
+            'fthumb'  => $pick['thumbnail_name'],
+            'oldDir'  => $oldDir,
+            'newDir'  => $newDir,
+            'type'    => $type,
+            'item_id' => $item_id,
+            'file'    => $pick,
+            'name'    => $pick['name']
         ));
-
         serendipity_plugin_api::hook_event('backend_media_rename', $renameValues);
 
-        // Rename file
-        rename($renameValues[0]['from'], $renameValues[0]['to']);
+        // Move the origin file
+        try { rename($oldfile, $newfile); } catch (Exception $e) { echo '<span class="msg_error"><span class="icon-attention-circled"></span> ' . ERROR_SOMETHING . ': '.$e->getMessage() . "</span>\n"; }
 
         foreach($renameValues AS $renameData) {
-            // Rename thumbnail
-            rename($serendipity['serendipityPath'] . $serendipity['uploadPath'] . $oldDir . $pick['name'] . (!empty($renameData['fthumb']) ? '.' . $renameData['fthumb'] : '') . (empty($pick['extension']) ? '' : '.' . $pick['extension']),
-                   $serendipity['serendipityPath'] . $serendipity['uploadPath'] . $newDir . $pick['name'] . '.' . $renameData['thumb'] . (empty($pick['extension']) ? '' : '.' . $pick['extension']));
+            $thisOldThumb = $serendipity['serendipityPath'] . $serendipity['uploadPath'] . $oldDir . $pick['name'] . (!empty($renameData['fthumb']) ? '.' . $renameData['fthumb'] : '') . (empty($pick['extension']) ? '' : '.' . $pick['extension']);
+            $thisNewThumb = $serendipity['serendipityPath'] . $serendipity['uploadPath'] . $newDir . $pick['name'] . (!empty($pick['thumbnail_name']) ? '.' . $pick['thumbnail_name'] : '') . (empty($pick['extension']) ? '' : '.' . $pick['extension']);
+            // Check for existent old thumb files first, to not need to disable rename by @rename(),then  move the thumb file and catch any wrong renaming
+            if (($thisNewThumb != $newfile) && file_exists($thisOldThumb)) {
+                // the thumb file and catch any wrong renaming
+                try { rename($thisOldThumb, $thisNewThumb); } catch (Exception $e) { echo '<span class="msg_error"><span class="icon-attention-circled"></span> ' . ERROR_SOMETHING . ': '.$e->getMessage() . "</span>\n"; }
+            }
+        }
+        // no need to use serendipity_updateImageInDatabase() here since already done in this case start
+        // ???? Forward user to overview (we don't want the user's back button to rename things again)
+
+        // prepare for message
+        $thisnew = (empty($newDir) ? $serendipity['uploadPath'] : '') . $newDir . $pick['name'];
+        $thisExt = isset($pick['extension']) ? '.'.$pick['extension'] : '';
+
+        if (file_exists($newfile)) {
+            echo '<span class="msg_success"><span class="icon-ok-circled"></span> ';
+            printf(MEDIA_DIRECTORY_MOVED, $thisnew . $thisExt);
+            echo "</span>\n";
         }
 
-        $oldDir .= $pick['name'];
-        $newDir .= $pick['name'];
-    } elseif ($type == 'dir') {
-        $renameValues = array(array(
-            'from'   => $oldfile,
-            'to'     => $newfile,
-            'thumb'  => $serendipity['thumbSuffix'],
-            'fthumb' => $file['thumbnail_name'],
-            'oldDir' => $oldDir,
-            'newDir' => $newDir,
-            'type'   => $type,
-            'item_id'=> $item_id,
-            'file'   => $file
-        ));
+    } // case dir, file, filedir end
 
-        serendipity_plugin_api::hook_event('backend_media_rename', $renameValues);
-    }
+    // Entry REPLACEMENT AREA
 
-    // Only MySQL supported, since I don't know how to use REGEXPs differently.
+    // Only MySQL supported, since I don't know how to use REGEXPs differently. // Ian: we should improve this to all!
     if ($serendipity['dbType'] != 'mysql' && $serendipity['dbType'] != 'mysqli') {
-        echo MEDIA_DIRECTORY_MOVE_ENTRY . '<br />';
+        echo '<span class="msg_notice"><span class="icon-info-circled"></span> ' . MEDIA_DIRECTORY_MOVE_ENTRY . "</span>\n";
         return true;
     }
 
-    $q = "SELECT id, body, extended
-            FROM {$serendipity['dbPrefix']}entries
-           WHERE body     REGEXP '(src=|href=|window.open.)(\'|\")(" . serendipity_db_escape_String($serendipity['baseURL'] . $serendipity['uploadHTTPPath'] . $oldDir) . "|" . serendipity_db_escape_string($serendipity['serendipityHTTPPath'] . $serendipity['uploadHTTPPath'] . $oldDir) . ")'
-              OR extended REGEXP '(src=|href=|window.open.)(\'|\")(" . serendipity_db_escape_String($serendipity['baseURL'] . $serendipity['uploadHTTPPath'] . $oldDir) . "|" . serendipity_db_escape_string($serendipity['serendipityHTTPPath'] . $serendipity['uploadHTTPPath'] . $oldDir) . ")'
-    ";
+    // Prepare the SELECT query for filetypes
+    if ($type == 'filedir' || $type == 'file') {
 
-    $dirs = serendipity_db_query($q);
-    if (is_array($dirs)) {
-        foreach($dirs AS $dir) {
-            $dir['body']     = preg_replace('@(src=|href=|window.open.)(\'|")(' . preg_quote($serendipity['baseURL'] . $serendipity['uploadHTTPPath'] . $oldDir) . '|' . preg_quote($serendipity['serendipityHTTPPath'] . $serendipity['uploadHTTPPath'] . $oldDir) . ')@', '\1\2' . $serendipity['serendipityHTTPPath'] . $serendipity['uploadHTTPPath'] . $newDir, $dir['body']);
-            $dir['extended'] = preg_replace('@(src=|href=|window.open.)(\'|")(' . preg_quote($serendipity['baseURL'] . $serendipity['uploadHTTPPath'] . $oldDir) . '|' . preg_quote($serendipity['serendipityHTTPPath'] . $serendipity['uploadHTTPPath'] . $oldDir) . ')@', '\1\2' . $serendipity['serendipityHTTPPath'] . $serendipity['uploadHTTPPath'] . $newDir, $dir['extended']);
+        // get the right $file, which is array or null, by type
+        $_file  = ($type == 'filedir') ? $pick : $file;
+        // check oldDir in bulkmove case
+        $oldDir = ($type == 'file' && !is_null($oldDir)) ? str_replace($_file['name'].'.'.$_file['extension'], '', $oldDir) : $oldDir;
+
+        // Path patterns to SELECT en detail to not pick path parts in a loop
+        if ($oldDir === null) {// care for file renaming with oldpath
+            $oldDirFile  = $_file['path'] . $_file['name'] . (($_file['extension']) ? '.'.$_file['extension'] : '');
+            $oldDirThumb = $_file['path'] . $_file['name'] . '.' . $_file['thumbnail_name'] . (($_file['extension']) ? '.'.$_file['extension'] : '');
+        } else {
+            $oldDirFile  = $oldDir . $_file['name'] . (($_file['extension']) ? '.'.$_file['extension'] : '');
+            $oldDirThumb = $oldDir . $_file['name'] . '.' . $_file['thumbnail_name'] . (($_file['extension']) ? '.'.$_file['extension'] : '');
+        }
+        if ($type == 'filedir' && !isset($newDirFile)) {
+            $newDirFile = (strpos($newDir, $_file['name']) === FALSE) ? $newDir . $_file['name'] : $newDir;
+        }
+        if ($type == 'file' && $oldDir === null) {
+            $newDirFile = (empty($newDirFile)) ? $newDir : $newDirFile; // for file renamings $newDirFile has to be $newDir ( which is subdir and new NAME w/o ext)
+        }
+        $ispOldFile = $serendipity['serendipityPath'] . $serendipity['uploadHTTPPath'] . $oldDirFile;
+
+    } elseif($type == 'dir') {
+        // since this is case 'dir', we do not have a filename and have to rename replacement File vars to oldDir and newDir values for the update preg_replace match
+        $oldDirFile = $oldDir;
+        $newDirFile = $newDir;
+        $ispOldFile = $serendipity['serendipityPath'] . $serendipity['uploadHTTPPath'] . $oldDirFile . (($_file['extension']) ? '.'.$_file['extension'] : '');
+    }
+
+    // Please note: imageselectorplus plugin quickblog is either quickblog:FullPath or quickblog:|?(none|plugin|js|_blank)|FullPath
+    // SELECTing the entries uses a more detailled approach to be as precise as possible, thus we need to reset these vars for the preg_replace later on in some cases
+    $q = "SELECT id, body, extended
+                FROM {$serendipity['dbPrefix']}entries
+               WHERE body     REGEXP '(src=|href=|window.open.|<!--quickblog:)(\'|\"|\\\|?(plugin|none|js|_blank)?\\\|?)(" . serendipity_db_escape_String($serendipity['baseURL'] . $serendipity['uploadHTTPPath'] . $oldDirFile) . "|" . serendipity_db_escape_String($serendipity['serendipityHTTPPath'] . $serendipity['uploadHTTPPath'] . $oldDirFile) . "|" . serendipity_db_escape_String($serendipity['baseURL'] . $serendipity['uploadHTTPPath'] . $oldDirThumb) . "|" . serendipity_db_escape_String($serendipity['serendipityHTTPPath'] . $serendipity['uploadHTTPPath'] . $oldDirThumb) . "|" . serendipity_db_escape_String($ispOldFile) . ")'
+                  OR extended REGEXP '(src=|href=|window.open.)(\'|\")(" . serendipity_db_escape_String($serendipity['baseURL'] . $serendipity['uploadHTTPPath'] . $oldDirFile) . "|" . serendipity_db_escape_String($serendipity['serendipityHTTPPath'] . $serendipity['uploadHTTPPath'] . $oldDirFile) . "|" . serendipity_db_escape_String($serendipity['baseURL'] . $serendipity['uploadHTTPPath'] . $oldDirThumb) . "|" . serendipity_db_escape_String($serendipity['serendipityHTTPPath'] . $serendipity['uploadHTTPPath'] . $oldDirThumb) . ")'
+    ";
+    $entries = serendipity_db_query($q, false, 'assoc');
+
+    if (is_array($entries) && !empty($entries)) {
+        // here we need to match thumbs too, so we do not want the extension, see detailled SELECT regex note
+        if ($type == 'file' && $oldDir === null) {
+            $_ispOldFile = $oldfile; // these vars are more exact in every case
+            $_ispNewFile = $newfile; // dito
+            $oldDirFile = $_file['path'] . $oldDirFile; // oldDirFile is missing a possible subdir path for the preg_replace
+            $newDirFile = $_file['path'] . $newDirFile; // newDirFile - dito
+        } else {
+            $_ispOldFile = $ispOldFile;
+            $_ispNewFile = $serendipity['serendipityPath'] . $serendipity['uploadHTTPPath'] . $newDirFile . (($_file['extension']) ? '.'.$_file['extension'] : '');
+        }
+        // last paranoidal check
+        $_oldDirFile = (strpos($oldDirFile, $_file['extension']) === FALSE) ? $oldDirFile : $oldDir . $_file['name'];
+
+        // what we actually need here, is oldDirFile w/o EXT to newDirFile w/o EXT and full ispOldFile path to full ispNewFile path !!!
+        foreach($entries AS $entry) {
+            $entry['body']     = preg_replace('@(src=|href=|window.open.)(\'|")(' . preg_quote($serendipity['baseURL'] . $serendipity['uploadHTTPPath'] . $_oldDirFile) . '|' . preg_quote($serendipity['serendipityHTTPPath'] . $serendipity['uploadHTTPPath'] . $_oldDirFile) . ')@', '\1\2' . $serendipity['serendipityHTTPPath'] . $serendipity['uploadHTTPPath'] . $newDirFile, $entry['body']);
+            $entry['body']     = preg_replace('@(<!--quickblog:)(\\|?(plugin|none|js|_blank)?\\|?)(' . preg_quote($_ispOldFile) . ')@', '\1\2' . $_ispNewFile, $entry['body']);
+            $entry['extended'] = preg_replace('@(src=|href=|window.open.)(\'|")(' . preg_quote($serendipity['baseURL'] . $serendipity['uploadHTTPPath'] . $_oldDirFile) . '|' . preg_quote($serendipity['serendipityHTTPPath'] . $serendipity['uploadHTTPPath'] . $_oldDirFile) . ')@', '\1\2' . $serendipity['serendipityHTTPPath'] . $serendipity['uploadHTTPPath'] . $newDirFile, $entry['extended']);
 
             $uq = "UPDATE {$serendipity['dbPrefix']}entries
-                                     SET body     = '" . serendipity_db_escape_string($dir['body']) . "' ,
-                                         extended = '" . serendipity_db_escape_string($dir['extended']) . "'
-                                   WHERE id       = " . serendipity_db_escape_string($dir['id']);
+                                     SET body     = '" . serendipity_db_escape_string($entry['body']) . "' ,
+                                         extended = '" . serendipity_db_escape_string($entry['extended']) . "'
+                                   WHERE id       =  " . serendipity_db_escape_string($entry['id']);
             serendipity_db_query($uq);
         }
 
-        printf(MEDIA_DIRECTORY_MOVE_ENTRIES . '<br />', count($dirs));
+        if ($oldDir !== null){
+            $imgmovedtodir = sprintf(MEDIA_DIRECTORY_MOVE_ENTRIES, count($entries));
+            echo '<span class="msg_notice"><span class="icon-info-circled"></span> ' . $imgmovedtodir . "</span>\n";
+        }
+
     }
 
     return true;
+}
+
+/**
+ * Show the Media Library
+ *
+ * @access  public
+ * @param   bool    default false
+ * @param   array   $smarty_vars
+ * @return  string  Image list
+ */
+function showMediaLibrary($addvar_check = false, $smarty_vars = array()) {
+    global $serendipity;
+
+    if (!serendipity_checkPermission('adminImagesView')) {
+        return;
+    }
+    $output = '';
+
+    // After upload, do not show the list to be able to proceed to
+    // media selection.
+    if ($addvar_check && !empty($GLOBALS['image_selector_addvars'])) {
+        return true;
+    }
+
+    if (!isset($serendipity['thumbPerPage'])) {
+        $serendipity['thumbPerPage'] = 2;
+    }
+    $smarty_vars = array(
+        'textarea' => isset($serendipity['GET']['textarea']) ? $serendipity['GET']['textarea'] : false,
+        'htmltarget' => isset($serendipity['GET']['htmltarget']) ? $serendipity['GET']['htmltarget'] : '',
+        'filename_only' => isset($serendipity['GET']['filename_only']) ? $serendipity['GET']['filename_only'] : false,
+    );
+
+    $show_upload = isset($serendipity['GET']['showUpload']) ? $serendipity['GET']['showUpload'] : false;
+
+    $output .= serendipity_displayImageList(
+        isset($serendipity['GET']['page']) ? $serendipity['GET']['page'] : 1,
+        $serendipity['thumbPerPage'],
+        isset($serendipity['GET']['showMediaToolbar']) ? serendipity_db_bool($serendipity['GET']['showMediaToolbar']) : true,
+        NULL,
+        $show_upload,
+        NULL,
+        $smarty_vars
+    );
+
+    return $output;
 }
 
 /**
@@ -3488,8 +3850,8 @@ function &serendipity_getMediaPaths() {
 
     $aExclude = array("CVS" => true, ".svn" => true, "_vti_cnf" => true); // add _vti_cnf to exclude possible added servers frontpage extensions
     serendipity_plugin_api::hook_event('backend_media_path_exclude_directories', $aExclude);
-    $paths        = array();
 
+    $paths        = array();
     $aResultSet   = serendipity_traversePath(
         $serendipity['serendipityPath'] . $serendipity['uploadPath'],
         '',

@@ -1,4 +1,4 @@
-<?php # $Id$
+<?php
 # Copyright (c) 2003-2005, Jannis Hermanns (on behalf the Serendipity Developer Team)
 # All rights reserved.  See LICENSE file for licensing details
 
@@ -25,17 +25,21 @@ switch($css_mode) {
     default:
         $css_hook = 'css';
         $css_file = 'style.css';
+        $css_userfile = 'user.css';
         break;
 
     case 'serendipity_admin.css':
+        // This constant is needed to properly set the template context for the backend.
+        @define('IN_serendipity_admin', true);
         $css_hook = 'css_backend';
         $css_file = 'admin/style.css';
+        $css_userfile = 'admin/user.css';
         break;
 }
 
 function serendipity_printStylesheet($file, $dir = '') {
     global $serendipity;
-    return "/* $dir  */\n" . str_replace(
+    return "\n/* auto include $dir */\n\n" . str_replace(
              array(
                '{TEMPLATE_PATH}',
                '{LANG_DIRECTION}'
@@ -48,7 +52,6 @@ function serendipity_printStylesheet($file, $dir = '') {
 
              @file_get_contents($file, 1));
 }
-
 
 if (strpos($_SERVER['HTTP_USER_AGENT'], 'MSIE') !== false) {
     header('Cache-Control: no-cache');
@@ -66,6 +69,10 @@ if (IS_installed === false) {
     die();
 }
 
+// Use output buffering to capture all output. This is necessary
+// because a plugin might call 'echo' directly instead of adding
+// the desired output to the hook parameter '$out'.
+ob_start();
 
 // First all of our fallback classes, so they can be overridden by the usual template.
 $out = serendipity_printStylesheet(
@@ -80,6 +87,42 @@ $out .= serendipity_printStylesheet(
 
 serendipity_plugin_api::hook_event($css_hook, $out);
 
+$out .= serendipity_printStylesheet(
+         serendipity_getTemplateFile($css_userfile, 'serendipityPath', true),
+         serendipity_getTemplateFile($css_userfile, '', true)
+);
+
 echo $out;
+
+//
+// Fetch output buffer containing the CSS output and create eTag header
+//
+$ob_buffer = ob_get_contents();
+
+if ($ob_buffer) {
+
+    // Calculate hash for eTag and get request header. The hash value
+    // changes with every modification to any part of the CSS styles.
+    // This includes the installation of a plugin that adds plugin
+    // specific styles.
+
+    // Send ETag header using the hash value of the CSS code
+    $hashValue = md5($ob_buffer);
+    @header('ETag: "' . $hashValue . '"');
+
+    // Compare value of If-None-Match header (if available) to hash value
+    if (!empty($_SERVER['HTTP_IF_NONE_MATCH'])) {
+        // Get request header value and chop off optional quotes
+        $reqHeader = trim($_SERVER['HTTP_IF_NONE_MATCH'], '"');
+
+        if ($hashValue === $reqHeader) {
+            // Tell client to use the cached version and destroy output buffer
+            @header('HTTP/1.1 304 Not Modified', true, 304);
+            ob_clean();
+        }
+    }
+}
+
+ob_end_flush();
 
 /* vim: set sts=4 ts=4 expandtab : */

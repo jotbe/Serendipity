@@ -1,11 +1,16 @@
-<?php #
-
-/**
- *  @version  
- *  @file 
- *  @author CapriSkye <admin@capriskye.com> http://open.38.com
- *  EN-Revision: Revision of lang_en.inc.php
- */
+<?php
+##########################################################################
+# Copyright (c) 2003-2005, Jannis Hermanns (on behalf the Serendipity    #
+# Developer Team) All rights reserved.  See LICENSE file for licensing   #
+# details								                                 #
+#                                                                        #
+# (c) 2003 Jannis Hermanns <J@hacked.it>                                 #
+# http://www.jannis.to/programming/serendipity.html                      #
+#                                                                        #
+# Translated by                                                          #
+# (c) 2004-2005 CapriSkye <admin@capriskye.com>                          #
+#       http://open.38.com                                               #
+##########################################################################
 
 @define('PLUGIN_RECENTENTRIES_TITLE', '最新文章');
 @define('PLUGIN_RECENTENTRIES_BLAHBLAH', '顯示最新文章的標題和日期');

@@ -1,6 +1,4 @@
-<?php #
-
-# serendipity_event_nl2br.php 2014-02-01 Ian $
+<?php
 
 @serendipity_plugin_api::load_language(dirname(__FILE__));
 
@@ -16,7 +14,7 @@ class serendipity_event_nl2br extends serendipity_event
         $propbag->add('description',   PLUGIN_EVENT_NL2BR_DESC);
         $propbag->add('stackable',     false);
         $propbag->add('author',        'Serendipity Team');
-        $propbag->add('version',       '2.19');
+        $propbag->add('version',       '2.20');
         $propbag->add('requirements',  array(
             'serendipity' => '0.8',
             'smarty'      => '2.6.7',
@@ -86,7 +84,7 @@ class serendipity_event_nl2br extends serendipity_event
     }
 
     function example() {
-        echo '<h3>PLEASE NOTE the implications of this markup plugin:</h3>
+        return '<h3>PLEASE NOTE the implications of this markup plugin:</h3>
         <p>This plugin transfers linebreaks to HTML-linebreaks, so that they show up in your blog entry.</p>
         <p>In two cases this can raise problematic issues for you:</p>
         <ul>
@@ -157,7 +155,7 @@ class serendipity_event_nl2br extends serendipity_event
                 $propbag->add('type',        'boolean');
                 $propbag->add('name',        constant($name));
                 $propbag->add('description', sprintf(APPLY_MARKUP_TO, constant($name)));
-                $propbag->add('default', 'true');
+                $propbag->add('default',     'true');
         }
         return true;
     }
@@ -211,7 +209,7 @@ class serendipity_event_nl2br extends serendipity_event
 
                     // check single entry for temporary disabled markups
                     if ( !$eventData['properties']['ep_disable_markup_' . $this->instance] &&
-                         !in_array($this->instance, (array)$serendipity['POST']['properties']['disable_markups']) &&
+                         @!in_array($this->instance, $serendipity['POST']['properties']['disable_markups']) &&
                          !$eventData['properties']['ep_no_textile'] && !isset($serendipity['POST']['properties']['ep_no_textile']) &&
                          !$eventData['properties']['ep_no_markdown'] && !isset($serendipity['POST']['properties']['ep_no_markdown'])) {
                         // yes, this markup shall be applied
@@ -221,6 +219,9 @@ class serendipity_event_nl2br extends serendipity_event
                         $serendipity['nl2br']['entry_disabled_markup'] = true;
                     }
 
+/* PLEASE NOTE:
+    $serendipity['POST']['properties']['disable_markups'] = array(false); is the only workable solution for (sidebar?) plugins (see sidebar plugins: guestbook, multilingual), to explicitly allow to apply nl2br to markup (if we want to)
+*/
                     // don't run, if the textile, or markdown plugin already took care about markup
                     if ($markup && $serendipity['nl2br']['entry_disabled_markup'] === false && (class_exists('serendipity_event_textile') || class_exists('serendipity_event_markdown'))) {
                         return true;
@@ -246,7 +247,7 @@ class serendipity_event_nl2br extends serendipity_event
                     foreach ($this->markup_elements as $temp) {
                         if (serendipity_db_bool($this->get_config($temp['name'], true)) && isset($eventData[$temp['element']]) &&
                                 !$eventData['properties']['ep_disable_markup_' . $this->instance] &&
-                                !in_array($this->instance, (array)$serendipity['POST']['properties']['disable_markups']) &&
+                                @!in_array($this->instance, $serendipity['POST']['properties']['disable_markups']) &&
                                 !$eventData['properties']['ep_no_nl2br'] &&
                                 !isset($serendipity['POST']['properties']['ep_no_nl2br'])) {
 
@@ -277,6 +278,7 @@ class serendipity_event_nl2br extends serendipity_event
                             }
                         }
                     }
+
                 return true;
                 break;
 
@@ -301,6 +303,7 @@ class serendipity_event_nl2br extends serendipity_event
                 case 'css':
 ?>
 
+/* nl2br plugin */
 p.whiteline {
     margin-top: 0em;
     margin-bottom: 1em;
@@ -532,7 +535,7 @@ p.break {
     }
 
     /**
-     * Find next newline seperated by text from current position
+     * Find next newline separated by text from current position
      * @param int start
      * $param array text
      */

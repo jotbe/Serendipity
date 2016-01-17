@@ -1,4 +1,4 @@
-<?php #
+<?php
 
 /**
  *  @version 
@@ -32,7 +32,7 @@
 
 @define('PLUGIN_EVENT_SPARTACUS_CHECK_SIDEBAR', 'Update sidebar plugins');
 @define('PLUGIN_EVENT_SPARTACUS_CHECK_EVENT', 'Update event plugins');
-@define('PLUGIN_EVENT_SPARTACUS_CHECK_HINT', 'Hint: You can upgrade multiple plugins at once by clicking the update-link with your middle mouse button, so that it opens in a new window/tab of your browser. Note that upgrading all plugins automatically could lead to network timeouts and garbaged files, thus this functionality does not exist intentionally.');
+@define('PLUGIN_EVENT_SPARTACUS_CHECK_HINT', 'You can upgrade multiple plugins at once by opening the update-link in a new tab (middle mouse button)');
 
 @define('PLUGIN_EVENT_SPARTACUS_TRYCURL', 'Trying to use cURL library as fallback...');
 @define('PLUGIN_EVENT_SPARTACUS_CURLFAIL', 'cURL library returned a failure, too.');
@@ -62,3 +62,5 @@
 @define('PLUGIN_EVENT_SPARTACUS_CUSTOMMIRROR', 'Custom location for mirror');
 @define('PLUGIN_EVENT_SPARTACUS_CUSTOMMIRROR_DESC', 'This option is for advanced users only. When the preconfigurable mirrors are down or malfunctioning, you can enter your own server name (like http://mirror.org/serendipity/). The server needs to maintain the XML files at URL level, and have subdirectories like additional_plugins and additional_themes. Only enter mirrors that you trust to be safe and which are a full duplicate of the files hosted in the CVS repository of Serendipity. You can enter multiple mirrors, separated by "|".');
 
+@define('PLUGIN_EVENT_SPARTACUS_CRONJOB', 'This plugin supports the Serendipity Cronjob plugin. Go and install it if you want scheduled execution.');
+@define('PLUGIN_EVENT_SPARTACUS_CRONJOB_WHEN', 'Execute regular cronjob to check for plugin updates, and mail those to the configured blog\'s mail address (%s)?');

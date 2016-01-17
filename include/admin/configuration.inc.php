@@ -18,63 +18,58 @@ if (!serendipity_checkPermission('siteConfiguration') && !serendipity_checkPermi
     return;
 }
 
-switch ($_POST['installAction'] && serendipity_checkFormToken()) {
-    case 'check':
-        $oldConfig = $serendipity;
-        $res = serendipity_updateConfiguration();
-        if (is_array($res)) {
-            echo DIAGNOSTIC_ERROR;
-            echo '<div class="serendipityAdminMsgError">- <img style="width: 22px; height: 22px; border: 0px; padding-right: 4px; vertical-align: middle" src="' . serendipity_getTemplateFile('admin/img/admin_msg_error.png') . '" alt="" />' . implode('<br />', $res) . '</div><br /><br />';
-        } else {
-            /* If we have new rewrite rules, then install them */
-            $permalinkOld = array(
-                $oldConfig['serendipityHTTPPath'],
-                $oldConfig['serendipityPath'],
-                $oldConfig['defaultBaseURL'],
-                $oldConfig['indexFile'],
-                $oldConfig['rewrite']);
+$data = array();
 
-            $permalinkNew = array(
-                $serendipity['serendipityHTTPPath'],
-                $serendipity['serendipityPath'],
-                $serendipity['defaultBaseURL'],
-                $serendipity['indexFile'],
-                $serendipity['rewrite']);
+if ($_POST['installAction'] == 'check' && serendipity_checkFormToken()) {
+    $data['installAction'] = 'check';
+    $oldConfig = $serendipity;
+    $res = serendipity_updateConfiguration();
+    $data['res'] = $res;
+    if (is_array($res)) {
+        $data['diagnosticError'] = true;
+    } else {
+        /* If we have new rewrite rules, then install them */
+        $permalinkOld = array(
+            $oldConfig['serendipityHTTPPath'],
+            $oldConfig['serendipityPath'],
+            $oldConfig['defaultBaseURL'],
+            $oldConfig['indexFile'],
+            $oldConfig['rewrite']);
 
-            // Compare all old permalink section values against new one. A change in any of those
-            // will force to update the .htaccess for rewrite rules.
-                $permconf = serendipity_parseTemplate(S9Y_CONFIG_TEMPLATE);
-                if (is_array($permconf) && is_array($permconf['permalinks']['items'])) {
-                    foreach($permconf['permalinks']['items'] AS $permitem) {
-                        $permalinkOld[] = $oldConfig[$permitem['var']];
-                        $permalinkNew[] = $serendipity[$permitem['var']];
-                    }
+        $permalinkNew = array(
+            $serendipity['serendipityHTTPPath'],
+            $serendipity['serendipityPath'],
+            $serendipity['defaultBaseURL'],
+            $serendipity['indexFile'],
+            $serendipity['rewrite']);
+
+        // Compare all old permalink section values against new one. A change in any of those
+        // will force to update the .htaccess for rewrite rules.
+            $permconf = serendipity_parseTemplate(S9Y_CONFIG_TEMPLATE);
+            if (is_array($permconf) && is_array($permconf['permalinks']['items'])) {
+                foreach($permconf['permalinks']['items'] AS $permitem) {
+                    $permalinkOld[] = $oldConfig[$permitem['var']];
+                    $permalinkNew[] = $serendipity[$permitem['var']];
                 }
-
-
-            if (serendipity_checkPermission('siteConfiguration') && serialize($permalinkOld) != serialize($permalinkNew)) {
-                printf(ATTEMPT_WRITE_FILE, $serendipity['serendipityPath'] . '.htaccess');
-                $res = serendipity_installFiles($serendipity['serendipityPath']);
-                if (is_array($res)) {
-                    echo implode('<br />', $res);
-                } else {
-                    echo DONE . '<br />';
-                }
-
-                serendipity_buildPermalinks();
             }
 
-            echo '<br /><div class="serendipityAdminMsgSuccess"><img style="height: 22px; width: 22px; border: 0px; padding-right: 4px; vertical-align: middle" src="' . serendipity_getTemplateFile('admin/img/admin_msg_success.png') . '" alt="" />' . WRITTEN_N_SAVED .'</div>';
+        if (serendipity_checkPermission('siteConfiguration') && serialize($permalinkOld) != serialize($permalinkNew)) {
+            $data['htaccessRewrite'] = true;
+            $data['serendipityPath'] = $serendipity['serendipityPath'];
+            $res = serendipity_installFiles($serendipity['serendipityPath']);
+            $data['res'] = $res;
+            serendipity_buildPermalinks();
         }
-
-        break;
-
-    default:
-        $from = &$serendipity;
-        $t = serendipity_parseTemplate(S9Y_CONFIG_TEMPLATE);
-        serendipity_printConfigTemplate($t, $from, false, true);
-        break;
+    }
 }
+
+$data['config'] = serendipity_printConfigTemplate(serendipity_parseTemplate(S9Y_CONFIG_TEMPLATE), $serendipity, false, true);
+
+if (!is_object($serendipity['smarty'])) {
+    serendipity_smarty_init();
+}
+
+echo serendipity_smarty_show('admin/configuration.inc.tpl', $data);
 
 /* vim: set sts=4 ts=4 expandtab : */
 ?>

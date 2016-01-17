@@ -1,4 +1,5 @@
-<?php # $Id: functions.inc.php 114 2005-05-22 15:37:11Z garvinhicking $
+<?php
+# $Id: functions.inc.php 114 2005-05-22 15:37:11Z garvinhicking $
 # Copyright (c) 2003-2005, Jannis Hermanns (on behalf the Serendipity Developer Team)
 # All rights reserved.  See LICENSE file for licensing details
 
@@ -419,7 +420,7 @@ function persian_date_utf($format, $timestamp='') {
                     $output_str.=$format[$i];
                     break;
             }
-        }else{
+        } else {
             $i++;
             $output_str.=$format[$i];
         }
@@ -479,7 +480,7 @@ function persian_mktime($hour='', $min='', $sec='', $mon='', $day='', $year='', 
     }
     */
 
-    if($mon <= 0){
+    if ($mon <= 0){
         // change sign
         $mon = abs($mon);
 
@@ -510,6 +511,6 @@ function persian_mktime($hour='', $min='', $sec='', $mon='', $day='', $year='', 
         $day += $j_days_in_month[$temp_month];
     }
 
-    list($year, $mon, $day)=p2g($year, $mon, $day);
+    list($year, $mon, $day) = p2g($year, $mon, $day);
     return mktime($hour, $min, $sec, $mon, $day, $year, $is_dst);
 }

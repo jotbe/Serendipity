@@ -1,11 +1,12 @@
-<?php # $Id$
+<?php
 # Copyright (c) 2003-2005, Jannis Hermanns (on behalf the Serendipity Developer Team)
 # All rights reserved.  See LICENSE file for licensing details
 
-if (defined('S9Y_FRAMEWORK_DB')) {
-    return;
+// PHP 5.5 compat, no longer use deprecated mysql
+if ($serendipity['dbType'] == 'mysql' && (version_compare(PHP_VERSION, '5.5.0') >= 0 || !function_exists('mysql_connect'))) {
+    $serendipity['dbType'] = 'mysqli';
 }
-@define('S9Y_FRAMEWORK_DB', true);
+
 
 // PHP 5.5 compat, no longer use deprecated mysql
 if ($serendipity['dbType'] == 'mysql' && (version_compare(PHP_VERSION, '5.5.0') >= 0 || !function_exists('mysql_connect'))) {
@@ -15,6 +16,8 @@ if ($serendipity['dbType'] == 'mysql' && (version_compare(PHP_VERSION, '5.5.0') 
 if (@include(S9Y_INCLUDE_PATH . "include/db/{$serendipity['dbType']}.inc.php")) {
     @define('S9Y_DB_INCLUDED', TRUE);
 }
+#include_once(S9Y_INCLUDE_PATH . "include/db/generic.inc.php");
+#define('S9Y_DB_INCLUDED', TRUE);
 
 /**
  * Perform a query to update the data of a certain table row
@@ -129,6 +132,7 @@ function serendipity_db_get_interval($val, $ival = 900) {
     switch($serendipity['dbType']) {
         case 'sqlite':
         case 'sqlite3':
+        case 'sqlite3oo':
         case 'pdo-sqlite':
             $interval = $ival;
             $ts       = time();

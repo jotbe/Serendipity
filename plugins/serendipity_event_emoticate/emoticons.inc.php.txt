@@ -1,0 +1,72 @@
+<?php
+    /** Custom emoticons.inc.php file example. Remove this DEMO file ".txt" extension.
+        Rewrite to your own needs and place this file in your own template directory base.
+        This needs to correspond with the emoticon images placed in "/templates/yourTemplate/img/emoticons/*".
+        Keep in mind that some smileys you can find in the internet are restricted in license!
+
+        Add Notes of what is what for your own custom_emoticons_regexp ;-)
+
+        :anger: = anger - 8-) = cool - :'( = cry
+
+        :-O = eek - :grmpf: = grmpf - :grrr: = grrr
+
+        :haha: = haha - :) = happy - :hero: = hero
+
+        :ko: = ko - :-D = laugh
+
+        :-| = normal - :-( = sad - :safe: = safe
+
+        :$ = shame - :-) = smile - :still: = still
+
+        :-P = tongue - :( = unhappy - :o: = whistle - ;-) = wink
+
+        . . . etc
+
+    */
+    $myThemePath = $serendipity['serendipityHTTPPath'] . $serendipity['templatePath'] . $serendipity['template'];
+    $serendipity['custom_emoticons_regexp'] = true;
+        $serendipity['custom_emoticons'] = array(
+                "\:'\("     => $myThemePath . '/img/emoticons/cry.png',
+
+                '\:\-?\)'   => $myThemePath . '/img/emoticons/smile.png',
+
+                '\:\-?\|'   => $myThemePath . '/img/emoticons/normal.png',
+
+                '\:\-?O'    => $myThemePath . '/img/emoticons/eek.png',
+
+                '\:\-?\('   => $myThemePath . '/img/emoticons/sad.png',
+
+                '8\-?\)'    => $myThemePath . '/img/emoticons/cool.png',
+
+                '\:\-?D'    => $myThemePath . '/img/emoticons/laugh.png',
+
+                '\:\-?P'    => $myThemePath . '/img/emoticons/tongue.png',
+
+                ';\-?\)'    => $myThemePath . '/img/emoticons/wink.png',
+
+                '\:anger\:' => $myThemePath . '/img/emoticons/anger.png',
+
+                '\:\$'      => $myThemePath . '/img/emoticons/shame.png',
+
+                '\:grmpf\:' => $myThemePath . '/img/emoticons/grmpf.png',
+
+                '\:grrr\:'  => $myThemePath . '/img/emoticons/grrr.png',
+
+                '\:haha\:'  => $myThemePath . '/img/emoticons/haha.png',
+
+                '\:\)'      => $myThemePath . '/img/emoticons/happy.png',
+
+                '\:hero\:'  => $myThemePath . '/img/emoticons/hero.png',
+
+                '\:ko\:'    => $myThemePath . '/img/emoticons/ko.png',
+
+                '\:safe\:'  => $myThemePath . '/img/emoticons/safe.png',
+
+                '\:still\:' => $myThemePath . '/img/emoticons/still.png',
+
+                '\:\('      => $myThemePath . '/img/emoticons/unhappy.png',
+
+                '\:o\:'     => $myThemePath . '/img/emoticons/whistle.png',
+        );
+
+?>

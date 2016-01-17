@@ -1,15 +1,10 @@
-<?php # $Id: functions.inc.php 85 2005-05-10 10:11:05Z garvinhicking $
+<?php
 # Copyright (c) 2003-2005, Jannis Hermanns (on behalf the Serendipity Developer Team)
 # All rights reserved.  See LICENSE file for licensing details
 
 if (IN_serendipity !== true) {
     die ("Don't hack!");
 }
-
-if (defined('S9Y_FRAMEWORK_PERMALINKS')) {
-    return;
-}
-@define('S9Y_FRAMEWORK_PERMALINKS', true);
 
 /**
  * Converts a string into a filename that can be used safely in HTTP URLs
@@ -264,6 +259,7 @@ function serendipity_initPermalinks() {
     @define('PAT_FILENAME_MATCH', '[' . PAT_FILENAME . ']+');
     @define('PAT_DIRNAME_MATCH',  '[' . PAT_FILENAME . '/]*');
     @define('PAT_CSS',            '@/(serendipity\.css|serendipity_admin\.css)@');
+    @define('PAT_JS',             '@/(serendipity\.js|serendipity_admin\.js)@');
     @define('PAT_FEED',           '@/(index|atom[0-9]*|rss|b2rss|b2rdf).(rss|rdf|rss2|xml)@');
     @define('PAT_COMMENTSUB',     '@/([0-9]+)[_\-][' . PAT_FILENAME . ']*\.html@i');
 
@@ -775,8 +771,8 @@ function serendipity_currentURL($strict = false) {
  * @return
  */
 function serendipity_getUriArguments($uri, $wildcard = false) {
-global $serendipity;
-static $indexFile = null;
+    global $serendipity;
+    static $indexFile = null;
 
     if ($indexFile === null) {
         $_indexFile = explode('.', $serendipity['indexFile']);

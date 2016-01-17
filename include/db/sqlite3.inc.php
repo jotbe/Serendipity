@@ -1,4 +1,5 @@
-<?php # $Id: sqlite.inc.php 1670 2007-04-10 13:23:34Z garvinhicking $
+<?php
+# $Id: sqlite.inc.php 1670 2007-04-10 13:23:34Z garvinhicking $
 # Copyright (c) 2003-2005, Jannis Hermanns (on behalf the Serendipity Developer Team)
 # All rights reserved.  See LICENSE file for licensing details
 
@@ -50,7 +51,7 @@ function serendipity_db_connect()
     }
 
     // SQLite3 doesn't support persistent connections
-    $serendipity['dbConn'] = sqlite3_open($serendipity['serendipityPath'] . $serendipity['dbName'] . '.db');
+    $serendipity['dbConn'] = sqlite3_open((defined('S9Y_DATA_PATH') ? S9Y_DATA_PATH : $serendipity['serendipityPath']) . $serendipity['dbName'] . '.db');
 
     return $serendipity['dbConn'];
 }
@@ -343,13 +344,14 @@ function serendipity_db_probe($hash, &$errs)
 function serendipity_db_schema_import($query)
 {
     static $search  = array('{AUTOINCREMENT}', '{PRIMARY}', '{UNSIGNED}', '{FULLTEXT}', '{BOOLEAN}', '{UTF_8}', '{TEXT}');
-    static $replace = array('INTEGER', 'PRIMARY KEY', '', '', 'BOOLEAN NOT NULL', '', 'LONGTEXT');
+    static $replace = array('INTEGER AUTOINCREMENT', 'PRIMARY KEY', '', '', 'BOOLEAN NOT NULL', '', 'LONGTEXT');
 
     if (stristr($query, '{FULLTEXT_MYSQL}')) {
         return true;
     }
 
     $query = trim(str_replace($search, $replace, $query));
+    $query = str_replace('INTEGER AUTOINCREMENT PRIMARY KEY', 'INTEGER PRIMARY KEY AUTOINCREMENT', $query);
     if ($query[0] == '@') {
         // Errors are expected to happen (like duplicate index creation)
         return serendipity_db_query(substr($query, 1), false, 'both', false, false, false, true);

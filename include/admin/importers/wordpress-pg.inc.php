@@ -1,4 +1,4 @@
-<?php # $Id: wordpress.inc.php,v 1.16 2005/05/17 11:34:48 garvinhicking Exp $
+<?php
 # Copyright (c) 2003-2005, Jannis Hermanns (on behalf the Serendipity Developer Team)
 # All rights reserved.  See LICENSE file for licensing details
 
@@ -87,7 +87,7 @@ class Serendipity_Import_WordPress_PG extends Serendipity_Import {
 
         $wpdb = pg_connect("$this->data['host'], $this->data['port'], $this->data['user'], $this->data['pass'], $this->data['name']");
         if ( !$wpdb ) {
-            return sprintf(PGSQL_COULDNT_CONNECT, htmlspecialchars($this->data['pass']));
+            return sprintf(PGSQL_COULDNT_CONNECT, serendipity_specialchars($this->data['pass']));
         }
 
         /* Users */

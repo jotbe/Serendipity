@@ -1,10 +1,11 @@
 <?php
-// Template options
+// Theme options
+@define('TWOK11_INSTR', 'To extend 2k11 with your own styles in an update-safe way, you can add a file <code>/templates/2k11/user.css</code>; it will be included automagically by s9y.');
 @define('TWOK11_HEADER_IMG','Use a banner image in the header? (1120 pixels wide; leave box empty to not use a banner)');
 @define('TWOK11_USE_CORENAV', 'Use global navigation?');
 @define('TWOK11_WEBFONTS', 'Use a webfont, hosted by Google?');
 @define('TWOK11_NOWEBFONT', 'Include no webfont');
-@define('TWOK11_USERSTYLES', 'Include user.css? (You need to create that file in your template directory. Generator: http://yellowled.github.com)');
+@define('TWOK11_USERSTYLES', 'Include user.css? (You need to create that file in your theme directory. Generator: http://yellowled.github.com)');
 @define('TWOK11_IMGSTYLE', 'Design of images in entries');
 @define('TWOK11_IMGSTYLE_NONE', 'No border');
 @define('TWOK11_IMGSTYLE_BORDER', 'Simple border');

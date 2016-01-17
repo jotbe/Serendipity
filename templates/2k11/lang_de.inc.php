@@ -1,10 +1,11 @@
 <?php
-// Template-Optionen
+// Theme-Optionen
+@define('TWOK11_INSTR', 'Um 2k11 updatesicher um eigene Styles zu erweitern kann eine Datei <code>/templates/2k11/user.css</code> angelegt werden; diese wird automagisch von s9y eingebunden.');
 @define('TWOK11_HEADER_IMG','Bannergrafik im Kopfbereich einbinden? (1120 Pixel breit; Feld leeren um Ausgabe zu unterdrücken)');
 @define('TWOK11_USE_CORENAV', 'Globale Navigation einbinden?');
 @define('TWOK11_WEBFONTS', 'Einen von Google gehosteten Webfont nutzen?');
 @define('TWOK11_NOWEBFONT', 'Keinen Webfont einbinden');
-@define('TWOK11_USERSTYLES', 'user.css einbinden? (Muss selbst im Templateverzeichnis angelegt werden! Generator: http://yellowled.github.com)');
+@define('TWOK11_USERSTYLES', 'user.css einbinden? (Muss selbst im Themeverzeichnis angelegt werden! Generator: http://yellowled.github.com)');
 @define('TWOK11_IMGSTYLE', 'Gestaltung von Bildern in Einträgen');
 @define('TWOK11_IMGSTYLE_NONE', 'Kein Rahmen');
 @define('TWOK11_IMGSTYLE_BORDER', 'Einfacher Rahmen');

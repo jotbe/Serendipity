@@ -1,9 +1,9 @@
-<?php # $Id$
+<?php
 # Copyright (c) 2003-2005, Jannis Hermanns (on behalf the Serendipity Developer Team)
 # All rights reserved.  See LICENSE file for licensing details
 
 /****************************************************************
- *      Blogger Importer v0.2, by Jawish Hameed (jawish.org)      *
+ *      Blogger Importer v0.2, by Jawish Hameed (jawish.org)    *
  ****************************************************************/
 
 require_once S9Y_PEAR_PATH . 'HTTP/Request.php';
@@ -12,7 +12,6 @@ class Serendipity_Import_Blogger extends Serendipity_Import {
     var $info        = array('software' => 'Blogger.com [using API]');
     var $data        = array();
     var $inputFields = array();
-
 
     function Serendipity_Import_Blogger($data) {
         global $serendipity;
@@ -163,7 +162,7 @@ class Serendipity_Import_Blogger extends Serendipity_Import {
             $authorList[$user['authorid']] = $user['username'];
         }
         unset($s9y_users);
-
+        
         // Load export
         $bXml = simplexml_load_string($req->getResponseBody());
 
@@ -179,8 +178,8 @@ class Serendipity_Import_Blogger extends Serendipity_Import {
                 // Create author if not in serendipity
                 $author = (string) $bEntry->author->name;
                 if (!array_search($author, $authorList)) {
-                    serendipity_db_insert(    'authors', 
-                                            array(    'right_publish' => 1,
+                    serendipity_db_insert('authors', 
+                                            array('right_publish' => 1,
                                                     'realname'      => $author,
                                                     'username'      => $author,
                                                     'userlevel'     => 0,
@@ -255,7 +254,7 @@ class Serendipity_Import_Blogger extends Serendipity_Import {
         foreach ($entryList as $eId => $eDetails) {
             // Update comment count for entry in s9y
             serendipity_db_query("UPDATE ". $serendipity['dbPrefix'] ."entries SET comments = ". $eDetails[2] ." WHERE id = ". $eDetails[0]);
-
+            
             echo '<li>'. $eDetails[1] .' comments('. $eDetails[2] .')</li>';
         }
         echo '</ul>';

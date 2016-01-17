@@ -14,7 +14,7 @@ class serendipity_event_templatechooser extends serendipity_event
         $propbag->add('description', PLUGIN_EVENT_TEMPLATECHOOSER_DESC);
         $propbag->add('stackable',   false);
         $propbag->add('author',      'Evan Nemerson');
-        $propbag->add('version',     '1.4');
+        $propbag->add('version',     '1.6');
         $propbag->add('requirements',  array(
             'serendipity' => '0.8',
             'smarty'      => '2.6.7',
@@ -41,14 +41,50 @@ class serendipity_event_templatechooser extends serendipity_event
         if (isset($hooks[$event])) {
             switch($event) {
               case 'frontend_configure':
-
+                if (defined('IN_serendipity_admin') && IN_serendipity_admin) {
+                    // Admin shall not have switchable themes.
+                    return true;
+                }
+                
                 if (isset($serendipity['COOKIE']['user_template']) && !isset($_REQUEST['user_template'])) {
                     $_REQUEST['user_template'] = $serendipity['COOKIE']['user_template'];
                 }
 
                 if (isset($_REQUEST['user_template']) && (in_array($_REQUEST['user_template'], serendipity_fetchTemplates())) ) {
-                    $_SESSION['serendipityUseTemplate'] = $_REQUEST['user_template'];
-                    serendipity_setCookie('user_template', $_REQUEST['user_template'], false);
+                
+                    # Specific themes can be blacklisted for viewing. Enter the names of those, one per line.
+                    $blacklisted = $has_blacklist = false;
+
+                    if (file_exists(dirname(__FILE__) . '/blacklist.txt')) {
+                        $_blacklist = explode("\n", file_get_contents(dirname(__FILE__) . '/blacklist.txt'));
+                        $blacklist = array();
+                        $has_blacklist = true;
+                        foreach($_blacklist AS $idx => $blackline) {
+                            $blackline = trim($blackline);
+                            if (empty($blackline)) continue;
+                            if ($blackline[0] == '#') continue;
+                            $blacklist[$blackline] = true;
+                            if (preg_match('/' . preg_quote($blackline) . '$/i', $_REQUEST['user_template'])) {
+                                header('X-Theme-Blacklisted: ' . urlencode($blackline));
+                                $blacklisted = true;
+                            }
+                        }
+                    }
+                    
+                    if (!$blacklisted) {
+                        $_SESSION['serendipityUseTemplate'] = $_REQUEST['user_template'];
+                        # When blacklisting occurs, the cookie to remember template selection will be removed by closing the browser.
+                        serendipity_setCookie('user_template', $_REQUEST['user_template'], false, ($has_blacklist ? 0 : false));
+                    }
+                }
+
+                // If the requested template is the same as the current default template,
+                // we will not set this variable. This is important so that templates/plugins
+                // which detect serendipityUseTemplate can use reasonable defaults in case
+                // template configuration options do not exist. Guess nobody understands
+                // this explanation anyways, and who reads this stuff, heh?
+                if ($_SESSION['serendipityUseTemplate'] == $eventData['template']) {
+                    unset($_SESSION['serendipityUseTemplate']);
                 }
                 
                 // If the requested template is the same as the current default template,

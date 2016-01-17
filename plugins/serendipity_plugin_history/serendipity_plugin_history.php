@@ -183,13 +183,13 @@ class serendipity_plugin_history extends serendipity_plugin
             $author = ($displayauthor) ? $e[$x]['author'] . ': ' : '';
             echo '<div class="serendipity_history_info">';
             if ($displayauthor)
-                { echo '<span class="serendipity_history_author">' . $author . '</span>'; }
+                { echo '<span class="serendipity_history_author">' . $author . ' </span>'; }
             if ($displaydate)
-                { echo '<span class="serendipity_history_date">' . $date . '</span>'; }
+                { echo '<span class="serendipity_history_date">' . $date . ' </span>'; } 
             $t = ($maxlength==0 || strlen($e[$x]['title'])<=$maxlength) ?
                     $e[$x]['title'] :
                     (trim(serendipity_mb('substr', $e[$x]['title'], 0, $maxlength-3)).' [...]');
-            echo '<a href="' . $url . '" title="' . str_replace("'", "`", htmlspecialchars($e[$x]['title'])) . '">"' . htmlspecialchars($t) . '"</a></div>';
+            echo '<a href="' . $url . '" title="' . str_replace("'", "`", serendipity_specialchars($e[$x]['title'])) . '">"' . serendipity_specialchars($t) . '"</a></div>';
             if ($full)
                 { echo '<div class="serendipity_history_body">' . strip_tags($e[$x]['body']) . '</div>'; }
         }

@@ -1,6 +1,4 @@
-<?php # $Id$
-# Copyright (c) 2003-2005, Jannis Hermanns (on behalf the Serendipity Developer Team)
-# All rights reserved.  See LICENSE file for licensing details
+<?php
 
 if (IN_serendipity !== true) {
     die ("Don't hack!");
@@ -10,6 +8,7 @@ if (!serendipity_checkPermission('adminEntries')) {
     return;
 }
 
+$per_page   = array('12', '16', '50', '100');
 $sort_order = array('timestamp'     => DATE,
                     'isdraft'       => PUBLISH . '/' . DRAFT,
                     'a.realname'    => AUTHOR,
@@ -17,343 +16,7 @@ $sort_order = array('timestamp'     => DATE,
                     'last_modified' => LAST_UPDATED,
                     'title'         => TITLE,
                     'id'            => 'ID');
-$per_page = array('12', '16', '50', '100');
 
-
-/**
- * Shows the entry panel overview
- *
- * Shows a list of existing entries, with pagination and cookie-remember settings.
- *
- * @access public
- * @return null
- */
-function serendipity_drawList() {
-    global $serendipity, $sort_order, $per_page;
-
-    $filter_import = array('author', 'category', 'isdraft');
-    $sort_import   = array('perPage', 'ordermode', 'order');
-    foreach($filter_import AS $f_import) {
-        serendipity_restoreVar($serendipity['COOKIE']['entrylist_filter_' . $f_import], $serendipity['GET']['filter'][$f_import]);
-        serendipity_JSsetCookie('entrylist_filter_' . $f_import, $serendipity['GET']['filter'][$f_import]);
-    }
-
-    foreach($sort_import AS $s_import) {
-        serendipity_restoreVar($serendipity['COOKIE']['entrylist_sort_' . $s_import], $serendipity['GET']['sort'][$s_import]);
-        serendipity_JSsetCookie('entrylist_sort_' . $s_import, $serendipity['GET']['sort'][$s_import]);
-    }
-
-    $perPage = (!empty($serendipity['GET']['sort']['perPage']) ? $serendipity['GET']['sort']['perPage'] : $per_page[0]);
-    $page    = (int)$serendipity['GET']['page'];
-    $offSet  = $perPage*$page;
-
-    if (empty($serendipity['GET']['sort']['ordermode']) || $serendipity['GET']['sort']['ordermode'] != 'ASC') {
-        $serendipity['GET']['sort']['ordermode'] = 'DESC';
-    }
-
-    if (!empty($serendipity['GET']['sort']['order']) && !empty($sort_order[$serendipity['GET']['sort']['order']])) {
-        $orderby = serendipity_db_escape_string($serendipity['GET']['sort']['order'] . ' ' . $serendipity['GET']['sort']['ordermode']);
-    } else {
-        $orderby = 'timestamp ' . serendipity_db_escape_string($serendipity['GET']['sort']['ordermode']);
-    }
-
-    $filter = array();
-
-    if (!empty($serendipity['GET']['filter']['author'])) {
-        $filter[] = "e.authorid = '" . serendipity_db_escape_string($serendipity['GET']['filter']['author']) . "'";
-    }
-
-    if (!empty($serendipity['GET']['filter']['category'])) {
-        $filter[] = "ec.categoryid = '" . serendipity_db_escape_string($serendipity['GET']['filter']['category']) . "'";
-    }
-
-    if (!empty($serendipity['GET']['filter']['isdraft'])) {
-        if ($serendipity['GET']['filter']['isdraft'] == 'draft') {
-            $filter[] = "e.isdraft = 'true'";
-        } elseif ($serendipity['GET']['filter']['isdraft'] == 'publish') {
-            $filter[] = "e.isdraft = 'false'";
-        }
-    }
-
-    if (!empty($serendipity['GET']['filter']['body'])) {
-        if ($serendipity['dbType'] == 'mysql') {
-            $filter[] = "MATCH (title,body,extended) AGAINST ('" . serendipity_db_escape_string($serendipity['GET']['filter']['body']) . "')";
-            $full     = true;
-        }
-    }
-
-    $filter_sql = implode(' AND ', $filter);
-
-    // Fetch the entries
-    $entries = serendipity_fetchEntries(
-                 false,
-                 false,
-                 serendipity_db_limit(
-                   $offSet,
-                   $perPage + 1
-                 ),
-                 true,
-                 false,
-                 $orderby,
-                 $filter_sql
-               );
-?>
-<div class="serendipity_admin_list">
-<form action="?" method="get">
-    <input type="hidden" name="serendipity[action]"      value="admin"      />
-    <input type="hidden" name="serendipity[adminModule]" value="entries"    />
-    <input type="hidden" name="serendipity[adminAction]" value="editSelect" />
-    <table width="100%" class="serendipity_admin_filters">
-        <tr>
-            <td class="serendipity_admin_filters_headline" colspan="6"><strong><?php echo FILTERS ?></strong> - <?php echo FIND_ENTRIES ?></td>
-        </tr>
-        <tr>
-            <td valign="top" width="80"><?php echo AUTHOR ?></td>
-            <td valign="top">
-                <select name="serendipity[filter][author]">
-                    <option value="">--</option>
-<?php
-                    $users = serendipity_fetchUsers('', 'hidden', true);
-                    if (is_array($users)) {
-                        foreach ($users AS $user) {
-                            if (isset($user['artcount']) && $user['artcount'] < 1) continue;
-                            echo '<option value="' . $user['authorid'] . '" ' . (isset($serendipity['GET']['filter']['author']) && $serendipity['GET']['filter']['author'] == $user['authorid'] ? 'selected="selected"' : '') . '>' . htmlspecialchars($user['realname']) . '</option>' . "\n";
-                        }
-                    }
-?>              </select> <select name="serendipity[filter][isdraft]">
-                    <option value="all"><?php echo COMMENTS_FILTER_ALL; ?></option>
-                    <option value="draft"   <?php echo (isset($serendipity['GET']['filter']['isdraft']) &&  $serendipity['GET']['filter']['isdraft'] == 'draft' ? 'selected="selected"' : ''); ?>><?php echo DRAFT; ?></option>
-                    <option value="publish" <?php echo (isset($serendipity['GET']['filter']['isdraft']) &&  $serendipity['GET']['filter']['isdraft'] == 'publish' ? 'selected="selected"' : ''); ?>><?php echo PUBLISH; ?></option>
-                </select>
-            </td>
-            <td valign="top" width="80"><?php echo CATEGORY ?></td>
-            <td valign="top">
-                <select name="serendipity[filter][category]">
-                    <option value="">--</option>
-<?php
-                    $categories = serendipity_fetchCategories();
-                    $categories = serendipity_walkRecursive($categories, 'categoryid', 'parentid', VIEWMODE_THREADED);
-                    foreach ( $categories as $cat ) {
-                        echo '<option value="'. $cat['categoryid'] .'"'. ($serendipity['GET']['filter']['category'] == $cat['categoryid'] ? ' selected="selected"' : '') .'>'. str_repeat('&nbsp;', $cat['depth']) . htmlspecialchars($cat['category_name']) .'</option>' . "\n";
-                    }
-?>              </select>
-            </td>
-            <td valign="top" width="80"><?php echo CONTENT ?></td>
-            <td valign="top"><input class="input_textbox" size="10" type="text" name="serendipity[filter][body]" value="<?php echo (isset($serendipity['GET']['filter']['body']) ? htmlspecialchars($serendipity['GET']['filter']['body']) : '') ?>" /></td>
-        </tr>
-        <tr>
-            <td class="serendipity_admin_filters_headline" colspan="6"><strong><?php echo SORT_ORDER ?></strong></td>
-        </tr>
-        <tr>
-            <td>
-                <?php echo SORT_BY ?>
-            </td>
-            <td>
-                <select name="serendipity[sort][order]">
-<?php
-    foreach($sort_order as $so_key => $so_val) {
-        echo '<option value="' . $so_key . '" ' . (isset($serendipity['GET']['sort']['order']) && $serendipity['GET']['sort']['order'] == $so_key ? 'selected="selected"': '') . '>' . $so_val . '</option>' . "\n";
-    }
-?>              </select>
-            </td>
-            <td><?php echo SORT_ORDER ?></td>
-            <td>
-                <select name="serendipity[sort][ordermode]">
-                    <option value="DESC" <?php echo (isset($serendipity['GET']['sort']['ordermode']) && $serendipity['GET']['sort']['ordermode'] == 'DESC' ? 'selected="selected"' : '') ?>><?php echo SORT_ORDER_DESC ?></option>
-                    <option value="ASC" <?php echo (isset($serendipity['GET']['sort']['ordermode']) && $serendipity['GET']['sort']['ordermode'] == 'ASC'  ? 'selected="selected"' : '') ?>><?php echo SORT_ORDER_ASC ?></option>
-                </select>
-            </td>
-            <td><?php echo ENTRIES_PER_PAGE ?></td>
-            <td>
-                <select name="serendipity[sort][perPage]">
-<?php
-    foreach($per_page AS $per_page_nr) {
-       echo '<option value="' . $per_page_nr . '"   ' . (isset($serendipity['GET']['sort']['perPage']) && $serendipity['GET']['sort']['perPage'] == $per_page_nr ? 'selected="selected"' : '') . '>' . $per_page_nr . '</option>' . "\n";
-    }
-
-?>
-                </select>
-            </td>
-        </tr>
-        <tr>
-            <td align="right" colspan="6"><input type="submit" name="go" value="<?php echo GO ?>" class="serendipityPrettyButton input_button" /></td>
-        </tr>
-    </table>
-    </form>
-
-    <table class="serendipity_admin_list" cellpadding="5" width="100%">
-<?php
-    if (is_array($entries)) {
-        $count = count($entries);
-        $qString = '?serendipity[adminModule]=entries&amp;serendipity[adminAction]=editSelect';
-        foreach ((array)$serendipity['GET']['sort'] as $k => $v) {
-            $qString .= '&amp;serendipity[sort]['. $k .']='. $v;
-        }
-        foreach ((array)$serendipity['GET']['filter'] as $k => $v) {
-            $qString .= '&amp;serendipity[filter]['. $k .']='. $v;
-        }
-        $linkPrevious = $qString . '&amp;serendipity[page]=' . ($page-1);
-        $linkNext     = $qString . '&amp;serendipity[page]=' . ($page+1);
-?>
-        <tr>
-            <td>
-                <?php if ($offSet > 0) { ?>
-                    <a href="<?php echo $linkPrevious ?>" class="serendipityIconLink"><img src="<?php echo serendipity_getTemplateFile('admin/img/previous.png') ?>" /><?php echo PREVIOUS ?></a>
-                <?php } ?>
-            </td>
-            <td align="right">
-                <?php if ($count > $perPage) { ?>
-                    <a href="<?php echo $linkNext ?>" class="serendipityIconLinkRight"><?php echo NEXT ?><img src="<?php echo serendipity_getTemplateFile('admin/img/next.png') ?>" /></a>
-                <?php } ?>
-            </td>
-        </tr>
-    </table>
-    <script type="text/javascript">
-    function invertSelection() {
-        var f = document.formMultiDelete;
-        for (var i = 0; i < f.elements.length; i++) {
-            if (f.elements[i].type == 'checkbox') {
-                f.elements[i].checked = !(f.elements[i].checked);
-            }
-        }
-    }
-    </script>
-    <form action="?" method="post" name="formMultiDelete" id="formMultiDelete">
-        <?php echo serendipity_setFormToken(); ?>
-        <input type="hidden" name="serendipity[action]" value="admin" />
-        <input type="hidden" name="serendipity[adminModule]" value="entries" />
-        <input type="hidden" name="serendipity[adminAction]" value="multidelete" />
-<?php
-        // Print the entries
-        $rows = 0;
-        foreach ($entries as $entry) {
-            $rows++;
-            if ($rows > $perPage) {
-                continue;
-            }
-            // Find out if the entry has been modified later than 30 minutes after creation
-            if ($entry['timestamp'] <= ($entry['last_modified'] - 60*30)) {
-                $lm = '<a href="#" title="' . LAST_UPDATED . ': ' . serendipity_formatTime(DATE_FORMAT_SHORT, $entry['last_modified']) . '" onclick="alert(this.title)"><img src="'. serendipity_getTemplateFile('admin/img/clock.png') .'" alt="*" style="border: 0px none ; vertical-align: bottom;" /></a>';
-            } else {
-                $lm = '';
-            }
-
-            if (!$serendipity['showFutureEntries'] && $entry['timestamp'] >= serendipity_serverOffsetHour()) {
-                $entry_pre = '<a href="#" title="' . ENTRY_PUBLISHED_FUTURE . '" onclick="alert(this.title)"><img src="'. serendipity_getTemplateFile('admin/img/clock_future.png') .'" alt="*" style="border: 0px none ; vertical-align: bottom;" /></a> ';
-            } else {
-                $entry_pre = '';
-            }
-
-            if (serendipity_db_bool($entry['properties']['ep_is_sticky'])) {
-                $entry_pre .= ' ' . STICKY_POSTINGS . ': ';
-            }
-
-            if (serendipity_db_bool($entry['isdraft'])) {
-                $entry_pre .= ' ' . DRAFT . ': ';
-            }
-?>
-<!--            <div class="serendipity_admin_list_item serendipity_admin_list_item_<?php echo ($rows % 2 ? 'even' : 'uneven'); ?>"> -->
-            <div class="serendipity_admin_list_item serendipity_admin_list_item_<?php echo ($rows % 2) ? 'even' : 'uneven'; ?>">
-
-                <table width="100%" cellspacing="0" cellpadding="3">
-                    <tr>
-                        <td>
-                            <strong><?php echo $entry_pre; ?><a href="?serendipity[action]=admin&amp;serendipity[adminModule]=entries&amp;serendipity[adminAction]=edit&amp;serendipity[id]=<?php echo $entry['id']; ?>" title="#<?php echo $entry['id']; ?>"><?php echo serendipity_truncateString(htmlspecialchars($entry['title']),50) ?></a></strong>
-                        </td>
-                        <td align="right">
-                            <?php echo serendipity_formatTime(DATE_FORMAT_SHORT, $entry['timestamp']) . ' ' .$lm; ?>
-                        </td>
-                    </tr>
-                    <tr>
-                        <td>
-                            <?php
-                echo POSTED_BY . ' ' . htmlspecialchars($entry['author']);
-                if (count($entry['categories'])) {
-                    echo ' ' . IN . ' ';
-                    $cats = array();
-                    foreach ($entry['categories'] as $cat) {
-                        $caturl = serendipity_categoryURL($cat);
-                        $cats[] = '<a href="' . $caturl . '">' . htmlspecialchars($cat['category_name']) . '</a>';
-                    }
-                    echo implode(', ', $cats);
-                }
-                $entry['link']         = serendipity_archiveURL($entry['id'], $entry['title'], 'serendipityHTTPPath', true, array('timestamp' => $entry['timestamp']));
-                $entry['preview_link'] = '?serendipity[noBanner]=true&amp;serendipity[noSidebar]=true&amp;serendipity[action]=admin&amp;serendipity[adminModule]=entries&amp;serendipity[adminAction]=preview&amp;serendipity[id]=' . $entry['id'];
-                ?>
-
-                        </td>
-                        <td align="right">
-                            <?php if (serendipity_db_bool($entry['isdraft']) || (!$serendipity['showFutureEntries'] && $entry['timestamp'] >= serendipity_serverOffsetHour())) { ?>
-                            <a target="_blank" href="<?php echo $entry['preview_link']; ?>&amp;<?php echo serendipity_setFormToken('url'); ?>" title="<?php echo PREVIEW . ' #' . $entry['id']; ?>" class="serendipityIconLink"><img src="<?php echo serendipity_getTemplateFile('admin/img/zoom.png'); ?>" alt="<?php echo PREVIEW; ?>" /><?php echo PREVIEW ?></a>
-                            <?php } else { ?>
-                            <a target="_blank" href="<?php echo $entry['link']; ?>" title="<?php echo VIEW . ' #' . $entry['id']; ?>" class="serendipityIconLink"><img src="<?php echo serendipity_getTemplateFile('admin/img/zoom.png'); ?>" alt="<?php echo VIEW; ?>" /><?php echo VIEW ?></a>
-                            <?php } ?>
-                            <a href="?serendipity[action]=admin&amp;serendipity[adminModule]=entries&amp;serendipity[adminAction]=edit&amp;serendipity[id]=<?php echo $entry['id']; ?>" title="<?php echo EDIT . ' #' . $entry['id']; ?>" class="serendipityIconLink"><img src="<?php echo serendipity_getTemplateFile('admin/img/edit.png'); ?>" alt="<?php echo EDIT; ?>" /><?php echo EDIT ?></a>
-                            <a href="?<?php echo serendipity_setFormToken('url'); ?>&amp;serendipity[action]=admin&amp;serendipity[adminModule]=entries&amp;serendipity[adminAction]=delete&amp;serendipity[id]=<?php echo $entry['id']; ?>" title="<?php echo DELETE . ' #' . $entry['id']; ?>" class="serendipityIconLink"><img src="<?php echo serendipity_getTemplateFile('admin/img/delete.png'); ?>" alt="<?php echo DELETE; ?>" /><?php echo DELETE ?></a>
-                            <input class="input_checkbox" type="checkbox" name="serendipity[multiDelete][]" value="<?php echo $entry['id']; ?>" />
-                        </td>
-                    </tr>
-                </table>
-            </div>
-<?php
-        } // end entries output
-?>
-        <table class="serendipity_admin_list" cellpadding="5" width="100%">
-            <tr>
-                <td>
-                    <?php if ($offSet > 0) { ?>
-                        <a href="<?php echo $linkPrevious ?>" class="serendipityIconLink"><img src="<?php echo serendipity_getTemplateFile('admin/img/previous.png') ?>" /><?php echo PREVIOUS ?></a>
-                    <?php } ?>
-                </td>
-                <td align="right">
-                    <?php if ($count > $perPage) { ?>
-                        <a href="<?php echo $linkNext ?>" class="serendipityIconLinkRight"><?php echo NEXT ?><img src="<?php echo serendipity_getTemplateFile('admin/img/next.png') ?>" /></a>
-                    <?php } ?>
-                </td>
-            </tr>
-        </table>
-
-        <table class="serendipity_admin_list" cellpadding="0" width="100%">
-            <tr>
-                <td align="right">
-                    <input type="button" name="toggle" value="<?php echo INVERT_SELECTIONS ?>" onclick="invertSelection()" class="serendipityPrettyButton input_button" />
-                    <input type="submit" name="toggle" value="<?php echo DELETE_SELECTED_ENTRIES ?>" class="serendipityPrettyButton input_button" />
-                </td>
-            </tr>
-        </table>
-        </form>
-
-        <div class="serendipity_admin_list_item serendipity_admin_list_item_<?php echo (($rows+1) % 2 ? 'even' : 'uneven'); ?>">
-            <table width="100%" cellspacing="0" cellpadding="3">
-                    <tr>
-                        <td>
-                            <form action="?" method="get">
-                                <input type="hidden" name="serendipity[action]"      value="admin"      />
-                                <input type="hidden" name="serendipity[adminModule]" value="entries"    />
-                                <input type="hidden" name="serendipity[adminAction]" value="editSelect" />
-                            <?php echo EDIT_ENTRY ?>: #<input class="input_textbox" type="text" size="3" name="serendipity[id]" /> <input type="submit" name="serendipity[editSubmit]" value="<?php echo GO ?>" class="serendipityPrettyButton input_button" />
-                            </form>
-                        </td>
-                    </tr>
-            </table>
-        </div>
- <?php
-    } else {
-        // We've got nothing
-?>
-        <tr>
-            <td align="center" class="serendipityAdminMsgNote">
-                <img style="width: 22px; height: 22px; border: 0px; padding-right: 4px; vertical-align: middle" src="<?php echo serendipity_getTemplateFile('admin/img/admin_msg_note.png'); ?>" alt="" />
-                <?php echo NO_ENTRIES_TO_PRINT ?>
-            </td>
-        </tr>
-    </table>
-<?php
-    }
-?>
-</div>
-<?php
-} // End function serendipity_drawList()
 
 if (!empty($serendipity['GET']['editSubmit'])) {
     $serendipity['GET']['adminAction'] = 'edit';
@@ -380,7 +43,9 @@ switch($serendipity['GET']['adminAction']) {
                        'allow_comments'     => $serendipity['POST']['allow_comments'],
                        'moderate_comments'  => $serendipity['POST']['moderate_comments'],
                        'exflag'             => (!empty($serendipity['POST']['extended']) ? true : false),
+                       'had_categories'     => $serendipity['POST']['had_categories']
                        // Messing with other attributes causes problems when entry is saved
+                       // Attributes need to explicitly matched/addressed in serendipity_updertEntry!
 
             );
         }
@@ -418,14 +83,17 @@ switch($serendipity['GET']['adminAction']) {
             if ($serendipity['POST']['preview'] != 'true') {
                 /* We don't need an iframe to save a draft */
                 if ( $serendipity['POST']['isdraft'] == 'true' ) {
-                    echo '<div class="serendipityAdminMsgSuccess"><img style="height: 22px; width: 22px; border: 0px; padding-right: 4px; vertical-align: middle" src="' . serendipity_getTemplateFile('admin/img/admin_msg_success.png') . '" alt="" />' . IFRAME_SAVE_DRAFT . '</div><br />';
-                    serendipity_updertEntry($entry);
+                    $data['is_draft'] = true;
+                    $errors = serendipity_updertEntry($entry);
+                    if (is_numeric($errors)) {
+                        $errors = "";
+                    }
                 } else {
                     if ($serendipity['use_iframe']) {
-                        echo '<div class="serendipityAdminMsgSuccess"><img style="height: 22px; width: 22px; border: 0px; padding-right: 4px; vertical-align: middle" src="' . serendipity_getTemplateFile('admin/img/admin_msg_success.png') . '" alt="" />' . IFRAME_SAVE . '</div><br />';
-                        serendipity_iframe_create('save', $entry);
+                        $data['is_iframe'] = true;
+                        $data['iframe'] = serendipity_iframe_create('save', $entry);
                     } else {
-                        serendipity_iframe($entry, 'save');
+                        $data['iframe'] = serendipity_iframe($entry, 'save');
                     }
                 }
             } else {
@@ -479,10 +147,10 @@ switch($serendipity['GET']['adminAction']) {
                 }
 
                 if ($serendipity['use_iframe']) {
-                    echo '<div class="serendipityAdminMsgSuccess"><img style="height: 22px; width: 22px; border: 0px; padding-right: 4px; vertical-align: middle" src="' . serendipity_getTemplateFile('admin/img/admin_msg_success.png') . '" alt="" />' . IFRAME_PREVIEW . '</div><br />';
-                    serendipity_iframe_create('preview', $entry);
+                    $data['is_iframepreview'] = true;
+                    $data['iframe'] = serendipity_iframe_create('preview', $entry);
                 } else {
-                    serendipity_iframe($entry, 'preview');
+                    $data['iframe'] = serendipity_iframe($entry, 'preview');
                 }
             }
         }
@@ -496,16 +164,16 @@ switch($serendipity['GET']['adminAction']) {
 
         if (!$preview_only) {
             include_once S9Y_INCLUDE_PATH . 'include/functions_entries_admin.inc.php';
-            serendipity_printEntryForm(
+            $entryForm = serendipity_printEntryForm(
                 '?',
                 array(
                   'serendipity[action]'      => 'admin',
                   'serendipity[adminModule]' => 'entries',
                   'serendipity[adminAction]' => 'save',
-                  'serendipity[timestamp]'   => htmlspecialchars($entry['timestamp'])
+                  'serendipity[timestamp]'   => serendipity_specialchars($entry['timestamp'])
                 ),
-
-                $entry
+                $entry,
+                $errors
             );
         }
 
@@ -518,12 +186,12 @@ switch($serendipity['GET']['adminAction']) {
 
         $entry = serendipity_fetchEntry('id', $serendipity['GET']['id'], 1, 1);
         serendipity_deleteEntry((int)$serendipity['GET']['id']);
-        printf(RIP_ENTRY, $entry['id'] . ' - ' . htmlspecialchars($entry['title']));
-        echo '<br />';
-        $cont_draw = true;
+        $data['switched_output'] = true;
+        $data['is_doDelete']     = true;
+        $data['del_entry']       = sprintf(RIP_ENTRY, $entry['id'] . ' - ' . serendipity_specialchars($entry['title']));
 
     case 'doMultiDelete':
-        if (!isset($cont_draw)) {
+        if ($serendipity['GET']['adminAction'] != 'doDelete') {
             if (!serendipity_checkFormToken() || !isset($serendipity['GET']['id'])) {
                 break;
             }
@@ -534,14 +202,180 @@ switch($serendipity['GET']['adminAction']) {
                 if ($id > 0) {
                     $entry = serendipity_fetchEntry('id', $id, 1, 1);
                     serendipity_deleteEntry((int)$id);
-                    printf(RIP_ENTRY, $entry['id'] . ' - ' . htmlspecialchars($entry['title']));
-                    echo '<br />';
+                    $data['is_doMultiDelete'] = true;
+                    $data['del_entry'][]      = sprintf(RIP_ENTRY, $entry['id'] . ' - ' . serendipity_specialchars($entry['title']));
                 }
             }
         }
 
     case 'editSelect':
-        serendipity_drawList();
+        $data['switched_output'] = false;
+        $filter_import = array('author', 'category', 'isdraft');
+        $sort_import   = array('perPage', 'ordermode', 'order');
+
+        foreach($filter_import AS $f_import) {
+            serendipity_restoreVar($serendipity['COOKIE']['entrylist_filter_' . $f_import], $serendipity['GET']['filter'][$f_import]);
+            $data["get_filter_$f_import"] = $serendipity['GET']['filter'][$f_import];
+        }
+
+        foreach($sort_import AS $s_import) {
+            serendipity_restoreVar($serendipity['COOKIE']['entrylist_sort_' . $s_import], $serendipity['GET']['sort'][$s_import]);
+            $data["get_sort_$s_import"] = $serendipity['GET']['sort'][$s_import];
+        }
+
+        $perPage = (!empty($serendipity['GET']['sort']['perPage']) ? $serendipity['GET']['sort']['perPage'] : $per_page[0]);
+        $page    = (int)$serendipity['GET']['page'];
+        $offSet  = $perPage*$page;
+
+        if (empty($serendipity['GET']['sort']['ordermode']) || $serendipity['GET']['sort']['ordermode'] != 'ASC') {
+            $serendipity['GET']['sort']['ordermode'] = 'DESC';
+        }
+
+        if (!empty($serendipity['GET']['sort']['order']) && !empty($sort_order[$serendipity['GET']['sort']['order']])) {
+            $orderby = serendipity_db_escape_string($serendipity['GET']['sort']['order'] . ' ' . $serendipity['GET']['sort']['ordermode']);
+        } else {
+            $orderby = 'timestamp ' . serendipity_db_escape_string($serendipity['GET']['sort']['ordermode']);
+        }
+
+        $filter = array();
+
+        if (!empty($serendipity['GET']['filter']['author'])) {
+            $filter[] = "e.authorid = '" . serendipity_db_escape_string($serendipity['GET']['filter']['author']) . "'";
+        }
+
+        if (!empty($serendipity['GET']['filter']['category'])) {
+            $filter[] = "ec.categoryid = '" . serendipity_db_escape_string($serendipity['GET']['filter']['category']) . "'";
+        }
+
+        if (!empty($serendipity['GET']['filter']['isdraft'])) {
+            if ($serendipity['GET']['filter']['isdraft'] == 'draft') {
+                $filter[] = "e.isdraft = 'true'";
+            } elseif ($serendipity['GET']['filter']['isdraft'] == 'publish') {
+                $filter[] = "e.isdraft = 'false'";
+            }
+        }
+
+        if (!empty($serendipity['GET']['filter']['body'])) {
+            $term = serendipity_db_escape_string($serendipity['GET']['filter']['body']);
+            if ($serendipity['dbType'] == 'postgres' || $serendipity['dbType'] == 'pdo-postgres') {
+                $r = serendipity_db_query("SELECT count(routine_name) AS counter
+                                             FROM information_schema.routines
+                                            WHERE routine_name LIKE 'to_tsvector'
+                                              AND specific_catalog = '" . $serendipity['dbName'] . "'");
+                if (is_array($r) && $r[0]['counter'] > 0) {
+                    $term = str_replace('&amp;', '&', $term);
+                    $filter[] = "( 
+                    to_tsvector('english', title)    @@to_tsquery('$term') OR
+                    to_tsvector('english', body)     @@to_tsquery('$term') OR
+                    to_tsvector('english', extended) @@to_tsquery('$term')
+                    )";
+                } else {
+                    $filter[] = "(title ILIKE '%$term%' OR body ILIKE '%$term%' OR extended ILIKE '%$term%')";
+                }
+                $full     = true;
+            } elseif ($serendipity['dbType'] == 'sqlite' || $serendipity['dbType'] == 'sqlite3' || $serendipity['dbType'] == 'pdo-sqlite' || $serendipity['dbType'] == 'sqlite3oo') {
+                $term = str_replace('*', '%', $term);
+                $term = serendipity_mb('strtolower', $term);
+                $filter[] = "(lower(title) LIKE '%$term%' OR lower(body) LIKE '%$term%' OR lower(extended) LIKE '%$term%')";
+                $full = true;
+            } else {
+                if (preg_match('@["\+\-\*~<>\(\)]+@', $term)) {
+                    $filter[] = "MATCH (title,body,extended) AGAINST ('" . $term . "' IN BOOLEAN MODE)";
+                } else {
+                    $filter[] = "MATCH (title,body,extended) AGAINST ('" . $term . "')";
+                }
+                $full     = true;
+            }
+        }
+
+        $filter_sql = implode(' AND ', $filter);
+
+        // Fetch the entries
+        $entries = serendipity_fetchEntries(
+                     false,
+                     false,
+                     serendipity_db_limit(
+                       $offSet,
+                       $perPage + 1
+                     ),
+                     true,
+                     false,
+                     $orderby,
+                     $filter_sql
+                   );
+
+        $users      = serendipity_fetchUsers('', 'hidden', true);
+        $categories = serendipity_fetchCategories();
+        $categories = serendipity_walkRecursive($categories, 'categoryid', 'parentid', VIEWMODE_THREADED);
+
+        $data['drawList']   = true;
+        $data['sort_order'] = $sort_order;
+        $data['perPage']    = $perPage;
+        $data['per_page']   = $per_page;
+        $data['urltoken']   = serendipity_setFormToken('url');
+        $data['formtoken']  = serendipity_setFormToken();
+        $data['users']      = $users;
+        $data['categories'] = $categories;
+        $data['offSet']     = $offSet;
+        $data['use_iframe'] = $serendipity['use_iframe'];
+        $data['page']       = $page;
+
+        $data['totalEntries']  = serendipity_getTotalEntries();
+        $data['simpleFilters'] = $serendipity['simpleFilters'];
+
+        if (is_array($entries)) {
+            $data['is_entries'] = true;
+            $data['count'] = count($entries);
+
+            $qString = '?serendipity[adminModule]=entries&amp;serendipity[adminAction]=editSelect';
+            foreach ((array)$serendipity['GET']['sort'] as $k => $v) {
+                $qString .= '&amp;serendipity[sort]['. $k .']='. $v;
+            }
+            foreach ((array)$serendipity['GET']['filter'] as $k => $v) {
+                $qString .= '&amp;serendipity[filter]['. $k .']='. $v;
+            }
+            $data['linkFirst']    = $qString . '&amp;serendipity[page]=' . 0;
+            $data['linkPrevious'] = $qString . '&amp;serendipity[page]=' . ($page-1);
+            $data['linkNext']     = $qString . '&amp;serendipity[page]=' . ($page+1);
+            $data['linkLast']     = $qString . '&amp;serendipity[page]='; // is done in tpl per $totalPages
+
+            $smartentries = array();
+            foreach ($entries as $ey) {
+                $entry_cats = array();
+                if (count($ey['categories'])) {
+                    foreach ($ey['categories'] as $cat) {
+                        $cat['link'] = serendipity_categoryURL($cat);
+                        $entry_cats[] = $cat;
+                    }
+                }
+
+                $smartentries[] = array(
+                    'id'            => $ey['id'],
+                    'title'         => serendipity_specialchars($ey['title']),
+                    'timestamp'     => (int)$ey['timestamp'],
+                    'last_modified' => (int)$ey['last_modified'],
+                    'isdraft'       => serendipity_db_bool($ey['isdraft']),
+                    'ep_is_sticky'  => (serendipity_db_bool($ey['properties']['ep_is_sticky']) ? true : false),
+                    'pubdate'       => date("c", (int)$ey['timestamp']),
+                    'author'        => serendipity_specialchars($ey['author']),
+                    'cats'          => $entry_cats,
+                    'preview'       => ((serendipity_db_bool($ey['isdraft']) || (!$serendipity['showFutureEntries'] && $ey['timestamp'] >= serendipity_serverOffsetHour())) ? true : false),
+                    'archive_link'  => serendipity_archiveURL($ey['id'], $ey['title'], 'serendipityHTTPPath', true, array('timestamp' => $ey['timestamp'])),
+                    'preview_link'  => '?serendipity[action]=admin&amp;serendipity[adminModule]=entries&amp;serendipity[adminAction]=preview&amp;' . serendipity_setFormToken('url') . '&amp;serendipity[id]=' . $ey['id']
+                );
+
+            }
+
+            $data['entries']           = $smartentries;
+            $data['urltoken']          = serendipity_setFormToken('url');
+            $data['formtoken']         = serendipity_setFormToken();
+            $data['serverOffsetHour']  = serendipity_serverOffsetHour();
+            $data['showFutureEntries'] = $serendipity['showFutureEntries'];
+            $data['filter_import']     = $filter_import;
+            $data['sort_import']       = $sort_import;
+        } else {
+            $data['no_entries'] = true;
+        } // if entries end
         break;
 
     case 'delete':
@@ -551,20 +385,19 @@ switch($serendipity['GET']['adminAction']) {
         $newLoc = '?' . serendipity_setFormToken('url') . '&amp;serendipity[action]=admin&amp;serendipity[adminModule]=entries&amp;serendipity[adminAction]=doDelete&amp;serendipity[id]=' . (int)$serendipity['GET']['id'];
 
         $entry = serendipity_fetchEntry('id', $serendipity['GET']['id'], 1, 1);
-        printf(DELETE_SURE, $entry['id'] . ' - ' . htmlspecialchars($entry['title']));
-?>
-<br />
-<br />
-<div>
-    <a href="<?php echo htmlspecialchars($_SERVER["HTTP_REFERER"]); ?>" class="serendipityPrettyButton input_button"><?php echo NOT_REALLY; ?></a>
-    <?php echo str_repeat('&nbsp;', 10); ?>
-    <a href="<?php echo $newLoc; ?>" class="serendipityPrettyButton input_button"><?php echo DUMP_IT; ?></a>
-</div>
-<?php
+        $data['switched_output'] = true;
+        $data['is_delete']       = true;
+        $data['newLoc']          = $newLoc;
+        // for smartification printf had to turn into sprintf!!
+        $data['rip_entry']       = sprintf(DELETE_SURE, $entry['id'] . ' - ' . serendipity_specialchars($entry['title']));
         break;
 
     case 'multidelete':
-        if (!serendipity_checkFormToken() || !is_array($serendipity['POST']['multiDelete'])) {
+        if (!serendipity_checkFormToken()) {
+            return; // blank content page, but default token check parameter is presenting a XSRF message when false
+        }
+        if (!is_array($serendipity['POST']['multiDelete'])) {
+            echo '<div class="msg_notice"><span class="icon-attention-circled"></span> ' . sprintf(MULTICHECK_NO_ITEM, $_SERVER['HTTP_REFERER']) . '</div>'."\n";
             break;
         }
 
@@ -572,8 +405,8 @@ switch($serendipity['GET']['adminAction']) {
         foreach($serendipity['POST']['multiDelete'] AS $idx => $id) {
             $ids .= (int)$id . ',';
             $entry = serendipity_fetchEntry('id', $id, 1, 1);
-            printf(DELETE_SURE, $entry['id'] . ' - ' . htmlspecialchars($entry['title']));
-            echo '<br />';
+            $data['is_multidelete'] = true;
+            $data['rip_entry'][]    = sprintf(DELETE_SURE, $entry['id'] . ' - ' . serendipity_specialchars($entry['title']));
         }
         $newLoc = '?' . serendipity_setFormToken('url') . '&amp;serendipity[action]=admin&amp;serendipity[adminModule]=entries&amp;serendipity[adminAction]=doMultiDelete&amp;serendipity[id]=' . $ids;
 ?>
@@ -592,8 +425,8 @@ switch($serendipity['GET']['adminAction']) {
 
     default:
         include_once S9Y_INCLUDE_PATH . 'include/functions_entries_admin.inc.php';
-
-        serendipity_printEntryForm(
+        // edit entry mode
+        $entryForm = serendipity_printEntryForm(
             '?',
             array(
             'serendipity[action]'      => 'admin',
@@ -603,5 +436,15 @@ switch($serendipity['GET']['adminAction']) {
             (isset($entry) ? $entry : array())
         );
 }
+
+$data['entryForm'] = $entryForm;
+$data['errors'] = $errors;
+$data['get'] = $serendipity['GET']; // don't trust {$smarty.get.vars} if not proofed, as we often change GET vars via serendipty['GET'] by runtime
+// make sure we've got these
+if (!isset($data['urltoken']))  $data['urltoken']  = serendipity_setFormToken('url');
+if (!isset($data['formtoken'])) $data['formtoken'] = serendipity_setFormToken();
+
+echo serendipity_smarty_show('admin/entries.inc.tpl', $data);
+
 /* vim: set sts=4 ts=4 expandtab : */
 ?>

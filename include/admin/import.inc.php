@@ -1,4 +1,4 @@
-<?php # $Id$
+<?php
 # Copyright (c) 2003-2005, Jannis Hermanns (on behalf the Serendipity Developer Team)
 # All rights reserved.  See LICENSE file for licensing details
 
@@ -166,7 +166,7 @@ class Serendipity_Import {
     function &nativeQuery($query, $db = false) {
         global $serendipity;
 
-        mysql_select_db($this->data['name'], $db);
+        mysqli_select_db($db, $this->data['name']);
         $dbn = false;
 
         $target = $this->data['charset'];
@@ -186,11 +186,11 @@ class Serendipity_Import {
         }
 
         if ($dbn && $serendipity['dbNames']) {
-            mysql_query("SET NAMES " . $dbn, $db);
+            mysqli_set_charset ( $db, $dbn );
         }
 
-        $return = &mysql_query($query, $db);
-        mysql_select_db($serendipity['dbName'], $serendipity['dbConn']);
+        $return = &mysqli_query($db, $query);
+        mysqli_select_db($serendipity['dbConn'], $serendipity['dbName']);
         serendipity_db_reconnect();
         return $return;
     }
@@ -211,11 +211,19 @@ if (isset($serendipity['GET']['importFrom']) && serendipity_checkFormToken()) {
     if ( $importer->validateData() ) {
         echo IMPORT_STARTING . '<br />';
 
-        /* import() MUST return (bool)true, otherwise we assume it failed */
-        if ( ($result = $importer->import()) !== true ) {
-            echo IMPORT_FAILED .': '. $result . '<br />';
+            /* import() MUST return (bool)true, otherwise we assume it failed */
+            if ( ($result = $importer->import()) !== true ) {
+                $data['result'] = $result;
+            }
+        /* Apprently we do not have valid data, ask for some */
         } else {
-            echo IMPORT_DONE . '<br />';
+            $data['formToken'] = serendipity_setFormToken();
+            $fields = $importer->getInputFields();
+            foreach ($fields as &$field ) {
+                $field['guessedInput'] = serendipity_guessInput($field['type'], 'serendipity[import]['. $field['name'] .']', (isset($serendipity['POST']['import'][$field['name']]) ? $serendipity['POST']['import'][$field['name']] : $field['default']), $field['default']);
+            }
+            $data['fields'] = $fields;
+            $data['notes'] = $importer->getImportNotes();
         }
 
 
@@ -288,5 +296,8 @@ if (isset($serendipity['GET']['importFrom']) && serendipity_checkFormToken()) {
 </form>
 <?php
 }
+
+echo serendipity_smarty_show('admin/import.inc.tpl', $data);
+
 
 /* vim: set sts=4 ts=4 expandtab : */

@@ -1,15 +1,10 @@
-<?php # $Id$
+<?php
 # Copyright (c) 2003-2005, Jannis Hermanns (on behalf the Serendipity Developer Team)
 # All rights reserved.  See LICENSE file for licensing details
 
 if (IN_serendipity !== true) {
     die ("Don't hack!");
 }
-
-if (defined('S9Y_FRAMEWORK_CONFIG')) {
-    return;
-}
-@define('S9Y_FRAMEWORK_CONFIG', true);
 
 /**
  * Adds a new author account
@@ -93,7 +88,6 @@ function serendipity_remove_config_var($name, $authorid = 0) {
  * @param   string      The name of the configuration value
  * @param   string      The value of the configuration item
  * @param   int         The ID of the owner of the config value (0: global)
- * @return  null
  */
 function serendipity_set_config_var($name, $val, $authorid = 0) {
     global $serendipity;
@@ -115,6 +109,7 @@ function serendipity_set_config_var($name, $val, $authorid = 0) {
     }
 
     if (is_string($r)) {
+        # if $r is a string, it is the error-message from the insert
         echo $r;
     }
 }
@@ -259,28 +254,61 @@ function serendipity_set_user_var($name, $val, $authorid, $copy_to_s9y = true) {
  * @access public
  * @param   string      The filename to search for in the selected template
  * @param   string      The path selector that tells whether to return a HTTP or realpath
+ * @param   bool        Enable to include frontend template fallback chaining (used for wysiwyg Editor custom config files, emoticons, etc)
+ * @param   bool        Enable to check into $serendipity['template'] or its engine, then fall back to $this->pluginFile dir (used by plugins via parseTemplate() method)
  * @return  string      The full path+filename to the requested file
  */
-function serendipity_getTemplateFile($file, $key = 'serendipityHTTPPath') {
+function serendipity_getTemplateFile($file, $key = 'serendipityHTTPPath', $force_frontend_fallback = false, $simple_plugin_fallback = false) {
     global $serendipity;
 
     $directories = array();
 
-    $directories[] = isset($serendipity['template']) ? $serendipity['template'] . '/' : '';
-    if (isset($serendipity['template_engine']) && (stristr($file, 'admin/') === false || $serendipity['template_engine'] != 'default')) {
-         $p = explode(',', $serendipity['template_engine']);
-         foreach($p AS $te) {
-             $directories[] = trim($te) . '/';
-         }
-    }
+    if (defined('IN_serendipity_admin') && $serendipity['smarty_preview'] == false) {
+        if ($force_frontend_fallback) {
+            // If enabled, even when within the admin suite it will be possible to reference files that
+            // reside within a frontend-only template directory.
+            $directories[] = $serendipity['template'] . '/';
+            if (isset($serendipity['template_engine']) && $serendipity['template_engine'] != null) {
+                $p = explode(',', $serendipity['template_engine']);
+                foreach($p AS $te) {
+                    $directories[] = trim($te) . '/';
+                }
+            }
+        }
 
-    $directories[] = $serendipity['defaultTemplate'] .'/';
-    $directories[] = 'default/';
+        if (!$simple_plugin_fallback) {
+            // Backend will always use our default backend (=defaultTemplate) as fallback.
+            $directories[] = isset($serendipity['template_backend']) ? $serendipity['template_backend'] . '/' : '';
+            $directories[] = $serendipity['defaultTemplate'] .'/';
+            $directories[] = 'default/';
+        }
+    } else {
+        $directories[] = isset($serendipity['template']) ? $serendipity['template'] . '/' : '';
+        if (isset($serendipity['template_engine']) && $serendipity['template_engine'] != null) {
+            $p = explode(',', $serendipity['template_engine']);
+            foreach($p AS $te) {
+                $directories[] = trim($te) . '/';
+            }
+        }
+
+        if (!$simple_plugin_fallback) {
+            // Frontend templates currently need to fall back to "default" (see "idea"), so that they get the
+            // output they desire. If templates are based on 2k11, they need to set "Engine: 2k11" in their info.txt
+            // file.
+            $directories[] = 'default/';
+            $directories[] = $serendipity['defaultTemplate'] .'/';
+        }
+    }
 
     foreach ($directories as $directory) {
         $templateFile = $serendipity['templatePath'] . $directory . $file;
         if (file_exists($serendipity['serendipityPath'] . $templateFile)) {
             return $serendipity[$key] . $templateFile;
+        }
+
+        if (file_exists($serendipity['serendipityPath'] . $templateFile . ".tpl")) {
+            # catch *.tpl files, used by the backend for serendipity_editor.js.tpl
+            return $serendipity['baseURL'] . 'index.php?/plugin/' . $file;
         }
     }
 
@@ -333,7 +361,6 @@ function serendipity_load_configuration($author = null) {
     if ((empty($author) || empty($serendipity['baseURL'])) && (! empty($serendipity['defaultBaseURL']))) {
         $serendipity['baseURL'] = $serendipity['defaultBaseURL'];
     }
-
 
     // Store default language
     $serendipity['default_lang'] = $serendipity['lang'];
@@ -390,7 +417,6 @@ function serendipity_login($use_external = true) {
         if (empty($serendipity['POST']['auto'])) {
             serendipity_deleteCookie('author_information');
             serendipity_deleteCookie('author_information_iv');
-
             return false;
         } else {
             serendipity_issueAutologin(
@@ -598,14 +624,14 @@ function serendipity_authenticate_author($username = '', $password = '', $is_has
                         $_SESSION['serendipityPassword']    = $serendipity['serendipityPassword'] = $password;
                     }
 
-                    $_SESSION['serendipityUser']        = $serendipity['serendipityUser']         = $username;
-                    $_SESSION['serendipityRealname']    = $serendipity['serendipityRealname']     = $row['realname'];
-                    $_SESSION['serendipityEmail']       = $serendipity['serendipityEmail']        = $row['email'];
-                    $_SESSION['serendipityAuthorid']    = $serendipity['authorid']                = $row['authorid'];
-                    $_SESSION['serendipityUserlevel']   = $serendipity['serendipityUserlevel']    = $row['userlevel'];
-                    $_SESSION['serendipityAuthedUser']  = $serendipity['serendipityAuthedUser']   = true;
-                    $_SESSION['serendipityRightPublish']= $serendipity['serendipityRightPublish'] = $row['right_publish'];
-                    $_SESSION['serendipityHashType']    = $serendipity['serendipityHashType']     = $row['hashtype'];
+                    $_SESSION['serendipityUser']         = $serendipity['serendipityUser']         = $username;
+                    $_SESSION['serendipityRealname']     = $serendipity['serendipityRealname']     = $row['realname'];
+                    $_SESSION['serendipityEmail']        = $serendipity['serendipityEmail']        = $row['email'];
+                    $_SESSION['serendipityAuthorid']     = $serendipity['authorid']                = $row['authorid'];
+                    $_SESSION['serendipityUserlevel']    = $serendipity['serendipityUserlevel']    = $row['userlevel'];
+                    $_SESSION['serendipityAuthedUser']   = $serendipity['serendipityAuthedUser']   = true;
+                    $_SESSION['serendipityRightPublish'] = $serendipity['serendipityRightPublish'] = $row['right_publish'];
+                    $_SESSION['serendipityHashType']     = $serendipity['serendipityHashType']     = $row['hashtype'];
 
                     serendipity_load_configuration($serendipity['authorid']);
                     serendipity_setCookie('userDefLang', $serendipity['lang'], false);
@@ -665,32 +691,15 @@ function serendipity_restoreVar(&$source, &$target) {
 }
 
 /**
- * Echo Javascript code to set a cookie variable
- *
- * This function is useful if your HTTP headers were already sent, but you still want to set a cookie
- * Note that contents are echo'd, not return'd.
- *
- * @access public
- * @param   string      The name of the cookie variable
- * @param   string      The contents of the cookie variable
- * @return  null
- */
-function serendipity_JSsetCookie($name, $value) {
-    $name  = htmlentities($name);
-    $value = urlencode($value);
-
-    echo '<script type="text/javascript">SetCookie("' . $name . '", unescape("' . $value . '"))</script>' . "\n";
-}
-
-/**
  * Set a Cookie via HTTP calls, and update $_COOKIE plus $serendipity['COOKIE'] array.
  *
  * @access public
  * @param   string      The name of the cookie variable
  * @param   string      The contents of the cookie variable
+ * @param   int         Cookie validity (unix timestamp)
  * @return null
  */
-function serendipity_setCookie($name, $value, $securebyprot = true) {
+function serendipity_setCookie($name, $value, $securebyprot = true, $custom_timeout = false) {
     global $serendipity;
 
     $host = $_SERVER['HTTP_HOST'];
@@ -709,10 +718,33 @@ function serendipity_setCookie($name, $value, $securebyprot = true) {
         $host = '';
     }
 
-    setcookie("serendipity[$name]", $value, time()+60*60*24*30, $serendipity['serendipityHTTPPath'], $host, $secure);
+    if ($custom_timeout === false) {
+        $custom_timeout = time() + 60*60*24*30;
+    }
+
+    setcookie("serendipity[$name]", $value, $custom_timeout, $serendipity['serendipityHTTPPath'], $host, $secure);
     $_COOKIE[$name] = $value;
     $serendipity['COOKIE'][$name] = $value;
 }
+
+/**
+ * Echo Javascript code to set a cookie variable
+ *
+ * This function is useful if your HTTP headers were already sent, but you still want to set a cookie
+ * Note that contents are echo'd, not return'd. Can be used by plugins.
+ *
+ * @access public
+ * @param   string      The name of the cookie variable
+ * @param   string      The contents of the cookie variable
+ * @return  null
+ */
+function serendipity_JSsetCookie($name, $value) {
+    $name  = serendipity_entities($name);
+    $value = urlencode($value);
+
+    echo '<script type="text/javascript">serendipity.SetCookie("' . $name . '", unescape("' . $value . '"))</script>' . "\n";
+}
+
 
 /**
  * Deletes an existing cookie value
@@ -755,17 +787,10 @@ function serendipity_is_iframe() {
     global $serendipity;
 
     if ($serendipity['GET']['is_iframe'] && is_array($_SESSION['save_entry'])) {
-        include_once S9Y_INCLUDE_PATH . 'include/functions_entries_admin.inc.php';
-        // An iframe may NOT contain <html> and </html> tags, that's why we emit different headers here than on serendipity_admin.php
-
-        // We need to restore GET/POST variables to that depending plugins inside the iframe
-        // can still fetch all that variables; and we also tighten security by not allowing
-        // to pass any different GET/POST variables to our iframe.
-        $iframe_mode         = $serendipity['GET']['iframe_mode'];
-        $serendipity['POST'] = &$_SESSION['save_entry_POST'];
-        $serendipity['GET']  = &$_SESSION['save_entry_POST']; // GET-Vars are the same as POST to ensure compatibility.
-        ignore_user_abort(true);
-        serendipity_iframe($_SESSION['save_entry'], $iframe_mode, true);
+        if (!is_object($serendipity['smarty'])) {
+            // We need smarty also in the iframe to load a template's config.inc.php and register possible event hooks.
+            serendipity_smarty_init();
+        }
         return true;
     }
     return false;
@@ -785,60 +810,39 @@ function serendipity_is_iframe() {
  * @param   boolean Use smarty templating?
  * @return  boolean Indicates whether iframe data was printed
  */
-function serendipity_iframe(&$entry, $mode = null, $use_smarty = true) {
+function serendipity_iframe(&$entry, $mode = null) {
     global $serendipity;
 
     if (empty($mode) || !is_array($entry)) {
         return false;
     }
 
-    if ($use_smarty) {
-        $serendipity['smarty_raw_mode'] = true; // Force output of Smarty stuff in the backend
-        $serendipity['smarty_preview']  = true;
-        serendipity_smarty_init();
-        $serendipity['smarty']->assign('is_preview',  true);
-        ob_start();
-    }
 
-    $show = false;
+    $data = array();
+    $data['is_preview'] =  true;
+    $data['mode'] =  $mode;
+
     switch ($mode) {
         case 'save':
-            echo '<div style="float: left; height: 75px"></div>';
+            ob_start();
             $res = serendipity_updertEntry($entry);
-
+            $data['updertHooks'] = ob_get_contents();
+            ob_end_clean();
             if (is_string($res)) {
-                echo '<div class="serendipity_msg_error">' . ERROR . ': <b>' . $res . '</b></div>';
-            } else {
-                if (!empty($serendipity['lastSavedEntry'])) {
-                    // Last saved entry must be propagated to entry form so that if the user re-edits it,
-                    // it needs to be stored with the new ID.
-                    echo '<script type="text/javascript">parent.document.forms[\'serendipityEntry\'][\'serendipity[id]\'].value = "' . $serendipity['lastSavedEntry'] . '";</script>';
-                }
-                $entrylink = serendipity_archiveURL($res, $entry['title'], 'serendipityHTTPPath', true, array('timestamp' => $entry['timestamp']));
-                echo '<div class="serendipityAdminMsgSuccess"><img style="height: 22px; width: 22px; border: 0px; padding-right: 4px; vertical-align: middle" src="' . serendipity_getTemplateFile('admin/img/admin_msg_success.png') . '" alt="" />' . ENTRY_SAVED . ' (<a href="' . $entrylink . '" target="_blank">' . VIEW . '</a>)</div>';
+                $data['res'] = $res;
             }
-            echo '<br style="clear: both" />';
-
-            $show = true;
+            if (!empty($serendipity['lastSavedEntry'])) {
+                $data['lastSavedEntry'] = $serendipity['lastSavedEntry'];
+            }
+            $data['entrylink'] = serendipity_archiveURL($res, $entry['title'], 'serendipityHTTPPath', true, array('timestamp' => $entry['timestamp']));
             break;
 
         case 'preview':
-            echo '<div id="serendipity_preview_spacer" style="float: left; height: 225px"></div>';
-            serendipity_printEntries(array($entry), ($entry['extended'] != '' ? 1 : 0), true);
-            echo '<br id="serendipity_preview_spacer2" style="clear: both" />';
-
-            $show = true;
+            $serendipity['smarty_preview']  = true;
+            $data['preview'] = serendipity_printEntries(array($entry), ($entry['extended'] != '' ? 1 : 0), true);
             break;
     }
-
-    if ($use_smarty) {
-        $preview = ob_get_contents();
-        ob_end_clean();
-        $serendipity['smarty']->assignByRef('preview', $preview);
-        $serendipity['smarty']->display(serendipity_getTemplateFile('preview_iframe.tpl', 'serendipityPath'));
-    }
-
-    return $show;
+    return serendipity_smarty_show('preview_iframe.tpl', $data);
 }
 
 /**
@@ -877,7 +881,7 @@ function serendipity_iframe_create($mode, &$entry) {
             break;
     }
 
-    echo '<iframe src="serendipity_admin.php?serendipity[is_iframe]=true&amp;serendipity[iframe_mode]=' . $mode . '" id="serendipity_iframe" name="serendipity_iframe" ' . $attr . ' width="100%" frameborder="0" marginwidth="0" marginheight="0" scrolling="auto" title="Serendipity">'
+    return '<iframe src="serendipity_admin.php?serendipity[is_iframe]=true&amp;serendipity[iframe_mode]=' . $mode . '" id="serendipity_iframe" name="serendipity_iframe" ' . $attr . ' width="100%" frameborder="0" marginwidth="0" marginheight="0" scrolling="auto" title="Serendipity">'
          . IFRAME_WARNING
          . '</iframe><br /><br />';
 }
@@ -907,6 +911,9 @@ function serendipity_probeInstallation($item) {
             if (extension_loaded('PDO') &&
                 in_array('sqlite', PDO::getAvailableDrivers())) {
                 $res['pdo-sqlite'] = 'PDO::SQLite';
+                $has_pdo = true;
+            } else {
+                $has_pdo = false;
             }
 
             if (extension_loaded('pgsql')) {
@@ -920,6 +927,13 @@ function serendipity_probeInstallation($item) {
             }
             if (extension_loaded('SQLITE3') && function_exists('sqlite3_open')) {
                 $res['sqlite3'] = 'SQLite3';
+            }
+            if (class_exists('SQLite3')) {
+                if ($has_pdo) {
+                    $res['sqlite3oo'] = 'SQLite3 (OO) (Preferrably use PDO-SQlite!)';
+                } else {
+                    $res['sqlite3oo'] = 'SQLite3 (OO)';
+                }
             }
             if (function_exists('sqlrcon_alloc')) {
                 $res['sqlrelay'] = 'SQLRelay';
@@ -947,7 +961,7 @@ function serendipity_probeInstallation($item) {
  * Sets a HTTP header
  *
  * @access public
- * @param   string      The HTTP headre to set
+ * @param   string      The HTTP header to set
  * @return null
  */
 function serendipity_header($header) {
@@ -990,7 +1004,7 @@ function serendipity_getSessionLanguage() {
     if (isset($serendipity['COOKIE']['serendipityLanguage'])) {
         if ($serendipity['expose_s9y']) serendipity_header('X-Serendipity-InterfaceLangSource: Cookie');
         $lang = $serendipity['COOKIE']['serendipityLanguage'];
-    } elseif (!empty($serendipity['languages'][$serendipity['GET']['lang_selected']])) {
+    } elseif (isset($serendipity['GET']['lang_selected']) && !empty($serendipity['languages'][$serendipity['GET']['lang_selected']])) {
         if ($serendipity['expose_s9y']) serendipity_header('X-Serendipity-InterfaceLangSource: GET');
         $lang = $serendipity['GET']['lang_selected'];
     } elseif (serendipity_db_bool($serendipity['lang_content_negotiation'])) {
@@ -1045,7 +1059,7 @@ function serendipity_getPostAuthSessionLanguage() {
         if ($serendipity['expose_s9y']) serendipity_header('X-Serendipity-InterfaceLangSource: Database');
         $lang = $serendipity['lang'];
     } else {
-        $lang = (isset($_SESSION['serendipityLanguage']))?$_SESSION['serendipityLanguage']:$serendipity['lang'];
+        $lang = (isset($_SESSION['serendipityLanguage'])) ? $_SESSION['serendipityLanguage'] : $serendipity['lang'];
     }
 
     if (!isset($serendipity['languages'][$lang])) {
@@ -1377,7 +1391,7 @@ function &serendipity_fetchGroup($groupid) {
 function &serendipity_getGroups($authorid, $sequence = false) {
     global $serendipity;
 
-    $_groups =& serendipity_db_query("SELECT g.id   AS confkey,
+    $_groups =& serendipity_db_query("SELECT g.id  AS confkey,
                                             g.name AS confvalue,
                                             g.id   AS id,
                                             g.name AS name
@@ -1999,7 +2013,7 @@ function serendipity_reportXSRF($type = 0, $reset = true, $use_config = false) {
     // Set this in your serendipity_config_local.inc.php if you want HTTP Referrer blocking:
     // $serendipity['referrerXSRF'] = true;
 
-    $string = '<div class="serendipityAdminMsgError XSRF_' . $type . '"><img style="width: 22px; height: 22px; border: 0px; padding-right: 4px; vertical-align: middle" src="' . serendipity_getTemplateFile('admin/img/admin_msg_error.png') . '" alt="" />' . ERROR_XSRF . '</div>';
+    $string = '<div class="msg_error XSRF_' . $type . '"><span class="icon-attention"></span> ' . ERROR_XSRF . '</div>';
     if ($reset) {
         // Config key "referrerXSRF" can be set to enable blocking based on HTTP Referrer. Recommended for Paranoia.
         if (($use_config && isset($serendipity['referrerXSRF']) && $serendipity['referrerXSRF']) || $use_config === false) {
@@ -2107,7 +2121,7 @@ function &serendipity_loadThemeOptions(&$template_config, $okey = '', $bc_bool =
     }
     if($bc_bool) {
         foreach($template_vars AS $k => $i) {
-            if($i == 'true' || $i == 'false') {
+            if ($i == 'true' || $i == 'false') {
                 $template_vars[$k] = serendipity_db_bool($i);
             }
         }
@@ -2224,6 +2238,12 @@ function serendipity_hasPluginPermissions($plugin, $groupid = null) {
     }
 }
 
+/**
+ * Return the SHA1 (with pre-hash) of a value
+ *
+ * @param string    The string to hash
+ * @return string   The hashed string
+ */
 function serendipity_hash($string) {
     global $serendipity;
 
@@ -2234,6 +2254,12 @@ function serendipity_hash($string) {
     return sha1($serendipity['hashkey'] . $string);
 }
 
+/**
+ * Backwards-compatibility to recognize old-style md5 passwords to allow migration
+ *
+ * @param string The string to hash
+ * @param string  Either SHA1 or MD5 hash, depending on value
+ */
 function serendipity_passwordhash($cleartext_password) {
     global $serendipity;
 

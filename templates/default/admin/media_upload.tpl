@@ -248,10 +248,7 @@ function fillInput(source, target) {ldelim}
         {serendipity_hookPlugin hook="backend_image_addform" hookAll=true}
 
         <div style="text-align: center; margin-top: 15px; margin-bottom: 15px">
-            <script type="text/javascript">
-                document.write('<input class="serendipityPrettyButton input_button" type="button" value="{$CONST.IMAGE_MORE_INPUT}" onclick="hideForeign(); addField()"' + '/><br' + '/>');
-            </script>
-            <input type="hidden" name="serendipity[all_authors]" value="true" checked="checked" id="all_authors" />
+            <input class="serendipityPrettyButton input_button" type="button" value="{$CONST.IMAGE_MORE_INPUT}" onclick="hideForeign(); addUploadField()" /><br />
             <br />
             <input onclick="checkInputs();" type="submit" value="{$CONST.GO}" class="serendipityPrettyButton input_button" />
             - {$CONST.WORD_OR} -

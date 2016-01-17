@@ -7,9 +7,15 @@
     <head>
         <title>{$CONST.SERENDIPITY_ADMIN_SUITE}</title>
         <meta http-equiv="Content-Type" content="text/html; charset={$head_charset}" />
-        <meta name="Powered-By" content="Serendipity v.{$head_version}" />
+        <meta name="generator" content="Serendipity v.{$serendipityVersion}" />
         <link rel="stylesheet" type="text/css" href="{serendipity_getFile file="base.css"}" />
         <link rel="stylesheet" type="text/css" href="{$head_link_stylesheet}" />
+        {if $head_link_stylesheet_frontend}
+        <link rel="stylesheet" href="{$head_link_stylesheet_frontend}">                                
+        {else}
+        <link rel="stylesheet" href="{$serendipityHTTPPath}{$serendipityRewritePrefix}serendipity.css">
+        {/if}
+
         <!--[if IE 6]>
         <link rel="stylesheet" type="text/css" href="{serendipity_getFile file="ie6.css"}" />
         <![endif]-->
@@ -18,9 +24,7 @@
         <![endif]-->
         <!-- additional colorset stylesheet -->
         <link rel="stylesheet" type="text/css" href="{$serendipityHTTPPath}templates/{$template}/{$template_option.colorset}_style.css" />
-        <!-- additional user stylesheet: this can be used to override selected styles -->
-        {if $template_option.userstylesheet == 'true'}<link rel="stylesheet" type="text/css" href="{serendipity_getFile file="user.css"}" media="screen" />{/if}
-        
+
         <script type="text/javascript">
            window.onload = function() {ldelim}
              parent.document.getElementById('serendipity_iframe').style.height = document.getElementById('content').offsetHeight

@@ -1,4 +1,4 @@
-<?php # $Id$
+<?php
 # Copyright (c) 2003-2005, Jannis Hermanns (on behalf the Serendipity Developer Team)
 # All rights reserved.  See LICENSE file for licensing details
 /* vim: set sts=4 ts=4 expandtab : */
@@ -18,7 +18,7 @@
 @define('HAVE_TO_BE_LOGGED_ON', 'You have to be logged in to view this page');
 @define('WRONG_USERNAME_OR_PASSWORD', 'You appear to have entered an invalid username or password');
 @define('APPEARANCE', 'Appearance');
-@define('MANAGE_STYLES', 'Manage Styles');
+@define('MANAGE_STYLES', 'Manage Themes');
 @define('CONFIGURE_PLUGINS', 'Configure Plugins');
 @define('CONFIGURATION', 'Configuration');
 @define('BACK_TO_BLOG', 'Back to Weblog');
@@ -107,7 +107,6 @@
 @define('HOLDS_A_BLAHBLAH', 'Holds a nugget of HTML in your sidebar');
 @define('TITLE_FOR_NUGGET', 'Title for the nugget');
 @define('THE_NUGGET', 'The Nugget of HTML!');
-@define('SYNDICATE_THIS_BLOG', 'Syndicate This Blog');
 @define('YOU_CHOSE', 'You chose %s');
 @define('IMAGE_ROTATE_LEFT', 'Rotate image 90 degrees counter-clockwise');
 @define('IMAGE_ROTATE_RIGHT', 'Rotate image 90 degrees clockwise');
@@ -121,7 +120,7 @@
 @define('VIEW_FULL', 'view full');
 @define('VIEW_TOPICS', 'view topics');
 @define('AT', 'at');
-@define('SET_AS_TEMPLATE', 'Set as template');
+@define('SET_AS_TEMPLATE', 'Set as theme');
 @define('IN', 'in');
 @define('EXCERPT', 'Excerpt');
 @define('TRACKED', 'Tracked');
@@ -164,7 +163,7 @@
 @define('CATEGORY_DELETED', 'Category #%s deleted.');
 @define('INVALID_CATEGORY', 'No category was provided for deletion');
 @define('CATEGORY_SAVED', 'Category saved');
-@define('SELECT_TEMPLATE', 'Select the template you wish to use for your blog');
+@define('SELECT_TEMPLATE', 'Select the theme you wish to use for your blog');
 @define('ENTRIES_NOT_SUCCESSFULLY_INSERTED', 'Entries were not successfully inserted!');
 @define('MT_DATA_FILE', 'Movable Type data file');
 @define('FORCE', 'Force');
@@ -396,11 +395,11 @@
 @define('INSTALL_CAT_DISPLAY', 'Appearance and Options');
 @define('INSTALL_CAT_DISPLAY_DESC', 'Customize how Serendipity looks and feels');
 @define('INSTALL_WYSIWYG', 'Use WYSIWYG editor');
-@define('INSTALL_WYSIWYG_DESC', 'Do you want to use the WYSIWYG editor? (Works on IE5+, partially in Mozilla 1.3+)');
+@define('INSTALL_WYSIWYG_DESC', 'Do you want to use the WYSIWYG editor?');
 @define('INSTALL_XHTML11', 'Force XHTML 1.1 compliance');
 @define('INSTALL_XHTML11_DESC', 'Do you want to force XHTML 1.1 compliance (may cause problems for back-/frontend on older 4th generation browsers)');
 @define('INSTALL_POPUP', 'Enable use of popup windows');
-@define('INSTALL_POPUP_DESC', 'Do you want to use popup windows for comments, trackbacks et al?');
+@define('INSTALL_POPUP_DESC', 'Do you want to use popup windows for comments, trackbacks et al? (Not supported by all themes)');
 @define('INSTALL_EMBED', 'Is serendipity embedded?');
 @define('INSTALL_EMBED_DESC', 'If you want to embed serendipity within a regular page, set to true to discard any headers and just print the contents. You can make use of the indexFile option to use a wrapper class where you put your normal webpage headers. See the README file for more information!');
 @define('INSTALL_TOP_AS_LINKS', 'Show Top Exits/Referrers as links?');
@@ -610,7 +609,7 @@
 @define('WONT_INSTALL_DB_AGAIN', 'will not install the database again');
 @define('CHECK_DATABASE_EXISTS', 'Checking to see if the database and tables already exist');
 @define('CREATING_PRIMARY_AUTHOR', 'Creating primary author \'%s\'');
-@define('SETTING_DEFAULT_TEMPLATE', 'Setting default template');
+@define('SETTING_DEFAULT_TEMPLATE', 'Setting default theme');
 @define('INSTALLING_DEFAULT_PLUGINS', 'Installing default plugins');
 @define('SERENDIPITY_INSTALLED', 'Serendipity has been successfully installed');
 @define('VISIT_BLOG_HERE', 'Visit your new blog here');
@@ -618,7 +617,7 @@
 @define('ERROR_DETECTED_IN_INSTALL', 'An error was detected in the installation');
 @define('OPERATING_SYSTEM', 'Operating system');
 @define('WEBSERVER_SAPI', 'Webserver SAPI');
-@define('TEMPLATE_SET', '\'%s\' has been set as your active template');
+@define('TEMPLATE_SET', '\'%s\' has been set as your active theme');
 @define('SEARCH_ERROR', 'The search function did not work as expected. Notice for the administrator of this blog: This may happen because of missing index keys in your database. On MySQL systems your database user account needs to be privileged to execute this query: <pre>CREATE FULLTEXT INDEX entry_idx on %sentries (title,body,extended)</pre> The specific error returned by the database was: <pre>%s</pre>');
 @define('EDIT_THIS_CAT', 'Editing "%s"');
 @define('CATEGORY_REMAINING', 'Delete this category and move its entries to this category');
@@ -627,7 +626,7 @@
 @define('RESET_DATE', 'Reset date');
 @define('RESET_DATE_DESC', 'Click here to reset the date to the current time');
 @define('PROBLEM_PERMISSIONS_HOWTO', 'Permissions can be set by running shell command: `<em>%s</em>` on the failed directory, or by setting this using an FTP program');
-@define('WARNING_TEMPLATE_DEPRECATED', 'Warning: Your current template is using a deprecated template method, you are advised to update if possible');
+@define('WARNING_TEMPLATE_DEPRECATED', 'Warning: Your current theme is using a deprecated theme method, you are advised to update if possible');
 @define('ENTRY_PUBLISHED_FUTURE', 'This entry is not yet published.');
 @define('ENTRIES_BY', 'Entries by %s');
 @define('PREVIOUS', 'Previous');
@@ -742,7 +741,7 @@
 @define('PLUGIN_GROUP_BACKEND_EDITOR', 'Backend: Editor');
 @define('PLUGIN_GROUP_BACKEND_USERMANAGEMENT', 'Backend: Usermanagement');
 @define('PLUGIN_GROUP_BACKEND_METAINFORMATION', 'Backend: Meta information');
-@define('PLUGIN_GROUP_BACKEND_TEMPLATES', 'Backend: Templates');
+@define('PLUGIN_GROUP_BACKEND_TEMPLATES', 'Backend: Themes');
 @define('PLUGIN_GROUP_BACKEND_FEATURES', 'Backend: Features');
 @define('PLUGIN_GROUP_IMAGES', 'Images');
 @define('PLUGIN_GROUP_ANTISPAM', 'Antispam');
@@ -854,8 +853,8 @@
 @define('MEDIA_PROP_DESC', 'Enter a list of ";" separated property fields you want to define for each media file');
 @define('MEDIA_PROP_MULTIDESC', '(You can append ":MULTI" after any item to indicate that this item will contain long text instead of just some characters)');
 
-@define('STYLE_OPTIONS_NONE', 'This theme/style has no specific options. To see how your template can specify options, read the Technical Documentation on www.s9y.org about "Configuration of Theme options".');
-@define('STYLE_OPTIONS', 'Theme/Style options');
+@define('STYLE_OPTIONS_NONE', 'This theme has no specific options. To see how your theme can specify options, read the Technical Documentation on www.s9y.org about "Configuration of Theme options".');
+@define('STYLE_OPTIONS', 'Theme options');
 
 @define('PLUGIN_AVAILABLE_COUNT', 'Total: %d plugins.');
 
@@ -958,7 +957,7 @@
 @define('PERMISSION_HIDDENGROUP', 'Hidden group / Non-Author');
 
 @define('SEARCH_FULLENTRY', 'Show full entry');
-@define('NAVLINK_AMOUNT', 'Enter number of links in the navbar (needs reload of the Manage Styles page)');
+@define('NAVLINK_AMOUNT', 'Enter number of links in the navbar (needs reload of the Manage Themes page)');
 @define('NAV_LINK_TEXT', 'Enter the navbar link text');
 @define('NAV_LINK_URL', 'Enter the full URL of your link');
 @define('MODERATE_SELECTED_COMMENTS', 'Approve selected comments');
@@ -975,3 +974,142 @@
 
 // added 2012-11-29
 @define('PLAIN_ASCII_NAMES', '(no special characters, umlauts)');
+// New 2.0 constants
+@define('SIMPLE_FILTERS', 'Simplified filters');
+@define('SIMPLE_FILTERS_DESC', 'When enabled, search forms and filter functions are reduced to essential options. When disabled, you will see every possible filter option, i.e. in the media library or the entry editor.');
+@define('TOGGLE_SELECT', 'Mark for selection');
+@define('MORE', 'More');
+@define('ENTRY_STATUS', 'Entry status');
+@define('SCHEDULED', 'Scheduled');
+@define('PUBLISHED', 'Published');
+@define('ENTRY_METADATA', 'Entry metadata');
+@define('NAVIGATION', 'Navigation');
+@define('MAIN_MENU', 'Main menu');
+@define('MENU_PERSONAL', 'Personal menu');
+@define('MENU_DASHBOARD', 'Dashboard');
+@define('MENU_ACTIVITY', 'Activity');
+@define('MENU_SETTINGS', 'Settings');
+@define('MENU_TEMPLATES', 'Themes');
+@define('MENU_PLUGINS', 'Plugins');
+@define('MENU_USERS', 'Users');
+@define('MENU_GROUPS', 'Groups');
+@define('MENU_MAINTENANCE', 'Maintenance');
+@define('ALIGN_TOP', 'Top');
+@define('ALIGN_LEFT', 'Left');
+@define('ALIGN_RIGHT', 'Right');
+@define('SHOW_METADATA', 'Show metadata');
+@define('RANGE_FROM', 'From');
+@define('RANGE_TO', 'To');
+@define('UPLOAD', 'Upload');
+@define('DOWNLOAD', 'Download');
+@define('ENTRY_PUBLISHED', 'Entry #%s published');
+@define('PUBLISH_ERROR', 'Error publishing entry:');
+@define('UPDATE_NOTIFICATION', 'Update notification');
+@define('NEW_VERSION_AVAILABLE', 'New stable Serendipity version available: ');
+@define('MOVE', 'Move');
+@define('MOVE_UP', 'Move up');
+@define('MOVE_DOWN', 'Move down');
+@define('INSTALL_NEW_SIDEBAR_PLUGIN', 'Install a new sidebar plugin');
+@define('INSTALL_NEW_EVENT_PLUGIN', 'Install a new event plugin');
+@define('TEMPLATE_OPTIONS', 'Theme options');
+@define('CURRENT_TEMPLATE', 'Current Theme');
+@define('TEMPLATE_INFO', 'Show theme info');
+@define('AVAILABLE_TEMPLATES', 'Available Themes');
+@define('TIMESTAMP_RESET', 'The timestamp has been reset to the current time.');
+
+@define('CLEANCOMPILE_PASS', '[smarty clearCompiledTemplate(%s)]');
+@define('CLEANCOMPILE_FAIL', 'No files available for clearing.');
+@define('CLEANCOMPILE_TITLE', 'Clear template cache');
+@define('CLEANCOMPILE_INFO', 'This will purge all compiled template files of the currently active template. Compiled templates will be automatically re-created on demand by the Smarty framework.');
+@define('INSTALLER_KEY', 'Key');
+@define('INSTALLER_VALUE', 'Value');
+@define('CURRENT_TAB', 'Current tab: ');
+@define('PINGBACKS', 'Pingbacks');
+@define('NO_PINGBACKS', 'No Pingbacks');
+@define('GROUP_NAME_DESC', "If you enter a string that is defined as a constant in any language file (e.g. 'USERLEVEL_EDITOR_DESC'), then the translated representation of this groupname will show up. You can also define your own constants and then enter their name here. If you do not want to have translatable group names, you can enter any other string you like.");
+@define('INSTALLER_CLI_TOOLS', 'Server-side command line tools');
+@define('INSTALLER_CLI_TOOLNAME', 'CLI tool');
+@define('INSTALLER_CLI_TOOLSTATUS', 'Executable?');
+@define('VIDEO', 'Video');
+@define('RESET_FILTERS', 'Reset filters');
+@define('UPDATE_FAILMSG', 'Check for new Serendipity version failed. This can happen because either the URL https://raw.github.com/s9y/Serendipity/master/docs/RELEASE is down, your server blocks outgoing connections or there are other connection issues.');
+@define('UPDATE_FAILACTION', 'Disable automatic update check');
+@define('UPDATE_NOTIFICATION_DESC', 'Show the update notification in the Dashboard, and for which channel?');
+@define('FRONTEND', 'Frontend');
+@define('BACKEND', 'Backend');
+@define('MEDIA_UPLOAD_RESIZE', 'Resize before Upload');
+@define('MEDIA_UPLOAD_RESIZE_DESC', 'Resize images according to configured maximum/minimum dimensions before the upload using Javascript. This will also change the uploader to use Ajax and thus remove the Property-Button');
+@define('LOG_LEVEL', 'Log Level');
+@define('LOG_LEVEL_DESC', 'At certain places in the Serendipity code we have placed debugging breakpoints. If this option is set to "Debug", it will write this debug output to templates_c/logs/. You should only enable this option if you are experiencing bugs in those areas, or if you are a developer. Setting this option to "Error" will enable logging PHP errors, overwriting the PHP error_log setting.');
+@define('DEBUG', 'Debug');
+@define('CUSTOM_CONFIG', 'Custom configuration file');
+@define('PLUGIN_ALREADY_INSTALLED', 'Plugin already installed, and does not support multiple installation ("stackable").');
+@define('INSTALL_DBPREFIX_INVALID', 'The database table name prefix must not be empty and may only contain letters, numbers and the underscore character.');
+@define('SYNDICATION_PLUGIN_SUBTOME', 'subToMe');
+@define('SYNDICATION_PLUGIN_SUBTOME_DESC', 'Show the subToMe button, a layer to make feed subscription easier');
+@define('SYNDICATE_THIS_BLOG', 'Subscribe');
+@define('SYNDICATION_PLUGIN_BIGIMG_DESC', 'Display a (big) image at the top of the feeds in sidebar, enter full or absolute URL to image file. Set to "none" to show a textlink (the old default)');
+@define('INSTALL_BACKENDPOPUP', 'Enable use of popup windows for the backend');
+@define('INSTALL_BACKENDPOPUP_DESC', 'Do you want to use popup windows for some backend functionality? When disabled (default), inline modal dialogs will be used for e.g. the category selector and media library.');
+@define('UPDATE_STABLE', 'stable');
+@define('UPDATE_BETA', 'beta');
+@define('SYNDICATION_PLUGIN_FEEDFORMAT', 'Feed format');
+@define('SYNDICATION_PLUGIN_FEEDFORMAT_DESC', 'Which format shall be used for all feeds. Both are supported in all common readers');
+@define('SYNDICATION_PLUGIN_COMMENTFEED', 'Comment feed');
+@define('SYNDICATION_PLUGIN_COMMENTFEED_DESC', 'Show an additional link to a comment feed. This should be interesting only to the blogauthor itself');
+@define('SYNDICATION_PLUGIN_FEEDICON', 'Feed icon');
+@define('SYNDICATION_PLUGIN_FEEDICON_DESC', 'Show a (big) icon insteaf of a textlink to the feed. Set to "none" to deactivate, or to "feedburner" to show a feedburner counter if an id is given below');
+@define('SYNDICATION_PLUGIN_CUSTOMURL', 'Custom URL');
+@define('SYNDICATION_PLUGIN_CUSTOMURL_DESC', 'If you want to link to the custom feed specified in the blog configuration, enable this option.');
+@define('FEED_CUSTOM', 'Custom feed URL');
+@define('FEED_CUSTOM_DESC', 'If set, a custom feed URL can be set to forward Feedreaders to a specific URL. Useful for statistical analyzers like Feedburner, in which case you would enter your Feedburner-URL here.');
+@define('FEED_FORCE', 'Force custom feed URL?');
+@define('FEED_FORCE_DESC', 'If enabled, the URL entered above will be mandatory for Feedreaders, and your usual feed cannot be accessed from clients.');
+@define('NO_UPDATES', 'No plugin updates are available');
+@define('PLUGIN_GROUP_ALL', 'All categories');
+
+@define('CONF_USE_AUTOSAVE', 'Enable autosave-feature');
+@define('CONF_USE_AUTOSAVE_DESC', 'When enabled, the text you enter into blog entries will be periodically saved in your browser\'s session storage. If your browser crashes during writing, the next time you create a new entry, the text will be restored from this autosave.');
+@define('INSTALL_CAT_FEEDS', 'Feed Settings');
+@define('USERCONF_USE_CORE_WYSIWYG_TOOLBAR', 'Toolbar for WYSIWYG editor');
+@define('USERCONF_USE_CORE_WYSIWYG_TOOLBAR_DESC', 'Sets the list of available toolbar buttons for the WYSIWYG-Editor. If you need to further change those presets, you can create a file templates/XXX/admin/ckeditor_custom_config.js. For further details please check out the files htmlarea/ckeditor_s9y_config.js and htmlarea/ckeditor_s9y_plugin.js.');
+@define('USERCONF_WYSIWYG_PRESET_S9Y', 'Serendipity (default)');
+@define('USERCONF_WYSIWYG_PRESET_BASIC', 'Reduced');
+@define('USERCONF_WYSIWYG_PRESET_FULL', 'Full');
+@define('USERCONF_WYSIWYG_PRESET_STANDARD', 'Alternate');
+@define('USERCONF_WYSIWYG_PRESET_CKE', 'CKEditor Full');
+@define('USERCONF_WYSIWYG_PRESET_NOCC_S9Y', 'Force: Serendipity');
+@define('USERCONF_WYSIWYG_PRESET_NOCC_BASIC', 'Force: Reduced');
+@define('USERCONF_WYSIWYG_PRESET_NOCC_FULL', 'Force: Full');
+@define('USERCONF_WYSIWYG_PRESET_NOCC_STANDARD', 'Force: Alternate');
+@define('USERCONF_WYSIWYG_PRESET_NOCC_CKE', 'Force: CKEditor Full');
+
+@define('CATEGORY_PLUGIN_SHOWALL', 'Show a link to "All categories"?');
+@define('CATEGORY_PLUGIN_SHOWALL', 'If enabled, a link for the visitor to display the blog with no category restriction will be added.');
+@define('SERENDIPITY_PHPVERSION_FAIL', 'Serendipity requires a PHP version >= %2$s - you are running a lower version (%1$s) and need to upgrade your PHP version. Most providers offer you to switch to newer PHP versions through their admin panels or .htaccess directives.');
+@define('TOGGLE_VIEW', 'Switch category view mode');
+@define('PUBLISH_NOW', 'Publish this entry now (sets current time and date)');
+@define('EDITOR_TAGS', 'Tags');
+@define('EDITOR_NO_TAGS', 'No tags');
+@define('DASHBOARD_ENTRIES', 'In Progress');
+@define('START_UPDATE', 'Starting Update ...');
+@define('UPDATE_ALL', 'Update All');
+@define('INSTALL_PASSWORD2', 'Admin password (verify)');
+@define('INSTALL_PASSWORD2_DESC', 'Password for admin login, enter again to verify.');
+@define('INSTALL_PASSWORD_INVALID', 'Your entered passwords for the administrator user do not match.');
+@define('INSTALL_BACKENDPOPUP_GRANULAR', 'Force specific backend popups');
+@define('INSTALL_BACKENDPOPUP_GRANULAR_DESC', 'If you generally disable backend popups, you can specifically force using popups for specific places by entering a comma separated list of places here. Available places are: ');
+@define('JS_FAILURE', 'The Serendipity JavaScript-library could not be loaded. This can happen due to PHP or Plugin errors, or even a malformed browser cache. To check the exact error please open <a href="%1$s">%1$s</a> manually in your browser and check for error messages.');
+@define('THEMES_PREVIEW_BLOG', 'See demo on blog.s9y.org');
+@define('SYNDICATION_PLUGIN_XML_DESC', 'Set to "none" if you only want to show a text link.');
+
+@define('MULTICHECK_NO_ITEM', 'No item selected, please check at least one. <a href="%s">Return to previous page</a>.');
+@define('MULTICHECK_NO_DIR', 'No directory selected, please choose one. <a href="%s">Return to previous page</a>.');
+@define('BULKMOVE_INFO', 'Bulk-move info');
+@define('BULKMOVE_INFO_DESC', 'You can select multiple files to bulk-move them to a new location. <strong>Note:</strong> This action cannot be undone, just like bulk-deletion of multiple files. All checked files will be physically moved, and referring blog entries are rewritten to point to the new location.');
+@define('FIRST_PAGE', 'First Page');
+@define('LAST_PAGE', 'Last Page');
+@define('MEDIA_PROPERTIES_DONE', 'Properties of #%d changed.');
+@define('DIRECTORY_INFO', 'Directory info');
+@define('DIRECTORY_INFO_DESC', 'Directories reflect their physical folder directory name. If you want to change or move directories which contain items, you have two choices. Either create the directory or subdirectory you want, then move the items to the new directory via the media library and afterwards, delete the empty old directory there. Or completely change the whole old directory via the edit directory button below and rename it to whatever you like (existing subdir/ + newname). This will move all directories and items and change referring blog entries.');
+@define('MEDIA_RESIZE_EXISTS', 'File dimensions already exist!');

@@ -1,11 +1,4 @@
-<?php #
-
-/**
- *  @version  
- *  @file 
- *  @author 
- *  EN-Revision: Revision of lang_en.inc.php
- */
+<?php
 
 @define('PLUGIN_RECENTENTRIES_TITLE', 'Nýlegar færslur');
 @define('PLUGIN_RECENTENTRIES_BLAHBLAH', 'Sýnir titla og dagsetningar nýlegustu færslanna');

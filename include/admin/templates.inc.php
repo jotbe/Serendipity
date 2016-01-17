@@ -1,4 +1,4 @@
-<?php # $Id$
+<?php
 # Copyright (c) 2003-2005, Jannis Hermanns (on behalf the Serendipity Developer Team)
 # All rights reserved.  See LICENSE file for licensing details
 
@@ -56,18 +56,38 @@ class template_option {
     }
 }
 
-if ($serendipity['GET']['adminAction'] == 'install' ) {
+$data = array();
+
+if ($serendipity['GET']['adminAction'] == 'editConfiguration') {
+    $data["adminAction"] = "editConfiguration";
+}
+
+if ($serendipity['GET']['adminAction'] == 'install' || $serendipity['GET']['adminAction'] == 'install-frontend' || $serendipity['GET']['adminAction'] == 'install-backend') {
     serendipity_plugin_api::hook_event('backend_templates_fetchtemplate', $serendipity);
 
-    $themeInfo = serendipity_fetchTemplateInfo(htmlspecialchars($serendipity['GET']['theme']));
+    $themeInfo = serendipity_fetchTemplateInfo(serendipity_specialchars($serendipity['GET']['theme']));
 
     // A separate hook is used post installation, for plugins to possibly perform some actions
     serendipity_plugin_api::hook_event('backend_templates_install', $serendipity['GET']['theme'], $themeInfo);
 
-    serendipity_set_config_var('template', htmlspecialchars($serendipity['GET']['theme']));
-    serendipity_set_config_var('template_engine', isset($themeInfo['engine']) ? $themeInfo['engine'] : 'default');
+    if ($serendipity['GET']['adminAction'] == 'install' || $serendipity['GET']['adminAction'] == 'install-frontend') {
+        serendipity_set_config_var('template', serendipity_specialchars($serendipity['GET']['theme']));
+    }
 
-    echo '<div class="serendipityAdminMsgSuccess"><img style="height: 22px; width: 22px; border: 0px; padding-right: 4px; vertical-align: middle" src="' . serendipity_getTemplateFile('admin/img/admin_msg_success.png') . '" alt="" />' . sprintf(TEMPLATE_SET, htmlspecialchars($serendipity['GET']['theme'])) .'</div>';
+    if ($serendipity['GET']['adminAction'] == 'install-backend' && $themeInfo['custom_admin_interface'] == YES) {
+        serendipity_set_config_var('template_backend', serendipity_specialchars($serendipity['GET']['theme']));
+    } else {
+        // template_engine was set by default to default, which screws up the fallback chain (to the default-template first)
+        // The "Engine" now only applies to FRONTEND themes. Backend themes will always fall back to our default backend theme only, to ensure proper backend operation.
+        serendipity_set_config_var('template_engine', null);
+        if ($themeInfo['engine']) {
+            serendipity_set_config_var('template_engine', $themeInfo['engine']);
+        }
+    }
+    serendipity_set_config_var('last_template_change', time());
+
+    $data["adminAction"] = "install";
+    $data["install_template"] = serendipity_specialchars($serendipity['GET']['theme']);
 }
 ?>
 
@@ -76,11 +96,32 @@ if ( @file_exists($serendipity['serendipityPath'] . $serendipity['templatePath']
     echo '<div class="serendipityAdminMsgNote"><img style="width: 22px; height: 22px; border: 0px; padding-right: 4px; vertical-align: middle" src="' . serendipity_getTemplateFile('admin/img/admin_msg_note.png') . '" alt="" />'. WARNING_TEMPLATE_DEPRECATED .'</div>';
 }
 
-echo '<h3>' . STYLE_OPTIONS . ' (' . $serendipity['template'] . ')</h3>';
-if (file_exists($serendipity['serendipityPath'] . $serendipity['templatePath'] . $serendipity['template'] . '/config.inc.php')) {
+$data["cur_template"]         = $serendipity['template'];
+$data["cur_template_backend"] = $serendipity['template_backend'];
+$data['cur_template_info']    = serendipity_fetchTemplateInfo($serendipity['template']);
+
+// NOTE: config.inc.php currently only applies to frontend configuration. Backend configuration is not planned yet, and would preferrably use a "config_backend.inc.php" file!
+if (file_exists($serendipity['serendipityPath'] . $serendipity['templatePath'] . $data['cur_template_info']['custom_config_engine'] . '/config.inc.php')) {
     serendipity_smarty_init();
-    include_once $serendipity['serendipityPath'] . $serendipity['templatePath'] . $serendipity['template'] . '/config.inc.php';
+    $old_template_config_groups = $template_config_groups;
+    include_once $serendipity['serendipityPath'] . $serendipity['templatePath'] . $data['cur_template_info']['custom_config_engine'] . '/config.inc.php';
+    // in case of theme switch, check to unset config_group array
+    if ($serendipity['GET']['adminAction'] == 'install' && $serendipity['GET']['adminModule'] == 'templates') {
+        // array diff - but do not do this for bulletproof, as this is the only one which needs them in case of reloads (temporary)
+        if($old_template_config_groups === $template_config_groups && $serendipity['GET']['theme'] != 'bulletproof') {
+            $template_config_groups = NULL; // force destroy previouses config_group array!
+        }
+    }
+    unset($old_template_config_groups);
+} else {
+    if ($serendipity['GET']['adminAction'] == 'install' && $serendipity['GET']['adminModule'] == 'templates') {
+        #include_once $serendipity['serendipityPath'] . $serendipity['templatePath'] . '/default/config_fallback.inc.php';
+        $template_config_groups = NULL;
+        $template_config        = NULL;
+        $template_loaded_config = NULL;
+    }
 }
+
 
 if (is_array($template_config)) {
     serendipity_plugin_api::hook_event('backend_templates_configuration_top', $template_config);
@@ -99,7 +140,7 @@ if (is_array($template_config)) {
     echo '<input type="hidden" name="serendipity[adminAction]" value="configure" />';
     echo serendipity_setFormToken();
 
-    include S9Y_INCLUDE_PATH . 'include/functions_plugins_admin.inc.php';
+    include_once S9Y_INCLUDE_PATH . 'include/functions_plugins_admin.inc.php';
 
     $template_vars =& serendipity_loadThemeOptions($template_config);
 
@@ -107,7 +148,7 @@ if (is_array($template_config)) {
     $template_options->import($template_config);
     $template_options->values =& $template_vars;
 
-    serendipity_plugin_config(
+    $data["configuration"] = serendipity_plugin_config(
         $template_options,
         $template_vars,
         $serendipity['template'],
@@ -120,100 +161,72 @@ if (is_array($template_config)) {
         'template',
         $template_config_groups
     );
-    echo '</form><br />';
+
     serendipity_plugin_api::hook_event('backend_templates_configuration_bottom', $template_config);
 } else {
     echo '<p>' . STYLE_OPTIONS_NONE . '</p>';
     serendipity_plugin_api::hook_event('backend_templates_configuration_none', $template_config);
 }
 
-echo '<h3>' . SELECT_TEMPLATE . '</h3>';
-?>
-<br />
-<?php
-    $i = 0;
-    $stack = array();
-    serendipity_plugin_api::hook_event('backend_templates_fetchlist', $stack);
-    $themes = serendipity_fetchTemplates();
-    foreach($themes AS $theme) {
-        $stack[$theme] = serendipity_fetchTemplateInfo($theme);
+$i = 0;
+$stack = array();
+serendipity_plugin_api::hook_event('backend_templates_fetchlist', $stack);
+$themes = serendipity_fetchTemplates();
+$data['templates'] = array();
+
+foreach($themes AS $theme) {
+    $stack[$theme] = serendipity_fetchTemplateInfo($theme);
+}
+ksort($stack);
+
+
+foreach ($stack as $theme => $info) {
+    /* Sorry, but we don't display engines */
+    if ( strtolower($info['engine']) == 'yes') {
+        continue;
     }
-    ksort($stack);
+    $data['templates'][$theme]['info'] = $info;
 
-    foreach ($stack as $theme => $info) {
-        $i++;
+    foreach(array('', '_backend') as $backendId) {
 
-        /* Sorry, but we don't display engines */
-        if ( strtolower($info['engine']) == 'yes' ) {
-            continue;
+        if (file_exists($serendipity["serendipityPath"] . $serendipity["templatePath"] . $theme . "/preview${backendId}_fullsize.jpg")) {
+            $data["templates"][$theme]["fullsize${backendId}_preview"] = $serendipity["baseURL"] . $serendipity["templatePath"] . $theme . "/preview${backendId}_fullsize.jpg";
+        } elseif (!empty($info["preview{$backendId}_fullsizeURL"])) {   // preview{$backendId}_fullsizeURL is not actually set yet in spartacus
+            if (file_exists($serendipity["serendipityPath"] . "/templates_c/template_cache/". $theme ."{$backendId}.jpg")) {
+                $data["templates"][$theme]["fullsize${backendId}_preview"]  = $serendipity["baseURL"] . "templates_c/template_cache/". $theme ."{$backendId}.jpg";
+            } else {
+                $data["templates"][$theme]["fullsize${backendId}_preview"] = $info["preview{$backendId}_fullsizeURL"];
+            }
         }
 
-        $preview = '';
-        $preview_link = false;
-        if (file_exists($serendipity['serendipityPath'] . $serendipity['templatePath'] . $theme . '/preview_fullsize.jpg')) {
-            $preview .= '<a href="' . $serendipity['baseURL'] . $serendipity['templatePath'] . $theme . '/preview_fullsize.jpg" target="_blank">';
-            $preview_link = true;
-        } elseif (!empty($info['preview_fullsizeURL'])) {
-            $preview .= '<a href="' . $info['preview_fullsizeURL'] . '" target="_blank">';
-            $preview_link = true;
-
-#        } else {
-#            echo "No large preview";
+        $previewType = '.png';
+        if ($backendId) {
+            $previewType = '.jpg';
         }
 
-        if (file_exists($serendipity['serendipityPath'] . $serendipity['templatePath'] . $theme . '/preview.png')) {
-            $preview .= '<img src="' . $serendipity['templatePath'] . $theme . '/preview.png" width="100" style="border: 1px #000000 solid" />';
-        } elseif (!empty($info['previewURL'])) {
-            $preview .= '<img src="' . $info['previewURL'] . '" width="100" style="border: 1px #000000 solid" />';
-        } else {
-            $preview .= '&nbsp;';
+        if (file_exists($serendipity["serendipityPath"] . $serendipity["templatePath"] . $theme . "/preview${backendId}${previewType}")) {
+            $data["templates"][$theme]["preview${backendId}"] = $serendipity["templatePath"] . $theme . "/preview${backendId}${previewType}";
+        } elseif (!empty($info["previewURL"])) {
+            $data["templates"][$theme]["preview${backendId}"] = $info["previewURL${backendId}"] ;
         }
 
-        if ($preview_link) {
-            $preview .= '</a>';
+        if ($info['demoURL']) {
+            $data['templates'][$theme]['demoURL'] = $info['demoURL'];
         }
-
-        if (empty($info['customURI'])) {
-            $info['customURI'] = '';
-        }
-
-        $unmetRequirements = array();
-        if ( isset($info['require serendipity']) && version_compare($info['require serendipity'], serendipity_getCoreVersion($serendipity['version']), '>') ) {
-            $unmetRequirements[] = 'Serendipity '. $info['require serendipity'];
-        }
-
-        /* TODO: Smarty versioncheck */
-
-        $class = (($i % 2 == 0) ? 'even' : 'uneven');
-
-?>
-<div class="serendipity_admin_list_item serendipity_admin_list_item_<?php echo $class ?>">
-    <table width="100%" id="serendipity_theme_<?php echo $theme; ?>">
-        <tr>
-            <td colspan="2"><span class="serendipityTemplateSelectName"><strong><?php echo $info['name']; ?></strong></span></td>
-            <td valign="middle" align="center" width="70" rowspan="2">
-<?php
-    if ( $serendipity['template'] != $theme ) {
-        if ( !sizeof($unmetRequirements) ) {
-?>
-            <a href="?serendipity[adminModule]=templates&amp;serendipity[adminAction]=install&amp;serendipity[theme]=<?php echo $theme . $info['customURI']; ?>"><img src="<?php echo serendipity_getTemplateFile('admin/img/install_now' . $info['customIcon'] . '.png') ?>" alt="<?php echo SET_AS_TEMPLATE ?>" title="<?php echo SET_AS_TEMPLATE ?>" border="0" /></a>
-<?php   } else { ?>
-        <span class="serendipityTemplateSelectUnmetRequirements" style="color: #cccccc"><?php echo sprintf(UNMET_REQUIREMENTS, implode(', ', $unmetRequirements)); ?></span>
-<?php
-        }
-    } ?>
-            </td>
-        </tr>
-
-        <tr>
-            <td width="100" style="padding-left: 10px"><?php echo $preview; ?></td>
-            <td valign="top">
-                <span class="serendipityTemplateSelectDetails"><?php echo AUTHOR;       ?>: <?php echo $info['author'];?></span><br />
-                <span class="serendipityTemplateSelectDetails"><?php echo LAST_UPDATED; ?>: <?php echo $info['date'];  ?></span><br />
-                <span class="serendipityTemplateSelectDetails"><?php echo CUSTOM_ADMIN_INTERFACE; ?>: <?php echo $info['custom_admin_interface']; ?></span><br />
-            </td>
-        </tr>
-    </table>
-</div>
-<?php
     }
+
+    $unmetRequirements = array();
+    if ( isset($info['require serendipity']) && version_compare($info['require serendipity'], serendipity_getCoreVersion($serendipity['version']), '>') ) {
+        $unmetRequirements[] = 'Serendipity '. $info['require serendipity'];
+        $data['templates'][$theme]['unmetRequirements'] = sprintf(UNMET_REQUIREMENTS, implode(', ', $unmetRequirements));
+    }
+}
+
+$data['cur_tpl']         = $data['templates'][$data['cur_template']];
+$data['cur_tpl_backend'] = $data['templates'][$data['cur_template_backend']];
+
+unset($data['templates'][$data['cur_template']]);
+
+echo serendipity_smarty_show('admin/templates.inc.tpl', $data);
+
+/* vim: set sts=4 ts=4 expandtab : */

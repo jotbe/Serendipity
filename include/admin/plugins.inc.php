@@ -1,6 +1,4 @@
-<?php # $Id$
-# Copyright (c) 2003-2005, Jannis Hermanns (on behalf the Serendipity Developer Team)
-# All rights reserved.  See LICENSE file for licensing details
+<?php
 
 if (IN_serendipity !== true) {
     die ('Don\'t hack!');
@@ -11,11 +9,15 @@ if (!serendipity_checkPermission('adminPlugins')) {
 }
 
 include_once S9Y_INCLUDE_PATH . 'include/plugin_api.inc.php';
-include_once S9Y_INCLUDE_PATH . 'include/plugin_internal.inc.php';
 include_once S9Y_INCLUDE_PATH . 'include/functions_entries_admin.inc.php';
 include_once S9Y_INCLUDE_PATH . 'include/functions_plugins_admin.inc.php';
+if (!class_exists('Smarty')) {
+    @define('SMARTY_DIR', S9Y_PEAR_PATH . 'Smarty/libs/');
+    include_once SMARTY_DIR . 'Smarty.class.php';
+}
 
 if (isset($_GET['serendipity']['plugin_to_move']) && isset($_GET['submit']) && serendipity_checkFormToken()) {
+
     if (isset($_GET['serendipity']['event_plugin'])) {
         $plugins = serendipity_plugin_api::enum_plugins('event', false);
     } else {
@@ -57,12 +59,14 @@ if (isset($_GET['serendipity']['plugin_to_move']) && isset($_GET['submit']) && s
 }
 
 if (isset($_GET['serendipity']['plugin_to_conf'])) {
+
     /* configure a specific instance */
     $plugin =& serendipity_plugin_api::load_plugin($_GET['serendipity']['plugin_to_conf']);
 
     if (!($plugin->protected === FALSE || $plugin->serendipity_owner == '0' || $plugin->serendipity_owner == $serendipity['authorid'] || serendipity_checkPermission('adminPluginsMaintainOthers'))) {
         return;
     }
+    $data['plugin_to_conf'] = true;
 
     $bag  = new serendipity_property_bag;
     $plugin->introspect($bag);
@@ -71,9 +75,9 @@ if (isset($_GET['serendipity']['plugin_to_conf'])) {
         $plugin->performConfig($bag);
     }
 
-    $name = htmlspecialchars($bag->get('name'));
-    $desc = htmlspecialchars($bag->get('description'));
-    $license = htmlspecialchars($bag->get('license'));
+    $name = serendipity_specialchars($bag->get('name'));
+    $desc = serendipity_specialchars($bag->get('description'));
+    $license = serendipity_specialchars($bag->get('license'));
 
     $documentation = $bag->get('website');
 
@@ -90,25 +94,18 @@ if (isset($_GET['serendipity']['plugin_to_conf'])) {
                 $value    = $_POST['serendipity']['plugin'][$config_item];
 
                 $validate = $plugin->validate($config_item, $cbag, $value);
-
                 if ($validate === true) {
-//                    echo $config_item . " validated: $validate<br />\n";
-
                     if (!empty($_POST['serendipity']['plugin']['override'][$config_item])) {
                         $value = $_POST['serendipity']['plugin']['override'][$config_item];
                     }
 
                     if (is_array($_POST['serendipity']['plugin']['activate'][$config_item])) {
-                        $values = explode(',', $value);
-                        $out_values = array();
-                        foreach($values AS $out_value) {
-                            if (!isset($_POST['serendipity']['plugin']['activate'][$config_item][$out_value])) {
-                                continue;
-                            }
-
-                            $out_values[] = $out_value;
+                        $active_values = array();
+                        foreach($_POST['serendipity']['plugin']['activate'][$config_item] as $ordered_item_value) {
+                            $ordered_item_value;
+                            $active_values[] = $ordered_item_value;
                         }
-                        $value = implode(',', $out_values);
+                        $value = implode(',', $active_values);
                     }
 
                     $plugin->set_config($config_item, $value);
@@ -120,16 +117,22 @@ if (isset($_GET['serendipity']['plugin_to_conf'])) {
 
         $plugin->cleanup();
     }
-?>
 
-<?php if ( isset($save_errors) && is_array($save_errors) && count($save_errors) > 0 ) { ?>
-    <div class="serendipityAdminMsgError">
-    <img style="width: 22px; height: 22px; border: 0px; padding-right: 4px; vertical-align: middle" src="<?php echo serendipity_getTemplateFile('admin/img/admin_msg_error.png'); ?>" alt="" />
-    <?php
-    echo ERROR . ":<br />\n";
-    echo "<ul>\n";
-    foreach($save_errors AS $save_error) {
-        echo '<li>' . $save_error . "</li>\n";
+    if ( isset($save_errors) && is_array($save_errors) && count($save_errors) > 0 ) {
+        $data['save_errors'] = $save_errors;
+    } elseif ( isset($_POST['SAVECONF'])) {
+        $data['saveconf'] = true;
+        $data['timestamp'] = serendipity_strftime('%H:%M:%S');
+    }
+    $data['formToken'] =  serendipity_setFormToken();
+    $data['name'] = $name;
+    $data['class'] = get_class($plugin);
+    $data['desc'] = $desc;
+    $data['documentation'] = $documentation;
+    $data['plugin'] = $plugin;
+
+    if (@file_exists(dirname($plugin->pluginFile) . '/ChangeLog')) {
+        $data['changelog'] = true;
     }
     echo "</ul>\n";
     ?>
@@ -159,39 +162,14 @@ if (isset($_GET['serendipity']['plugin_to_conf'])) {
                     echo '<br /><a href="plugins/' . $plugin->act_pluginPath . '/ChangeLog">' . PLUGIN_DOCUMENTATION_CHANGELOG . '</a>';
                 }
 
-                if (@file_exists(dirname($plugin->pluginFile) . '/documentation_' . $serendipity['lang'] . '.html')) {
-                    echo '<br /><a href="plugins/' . $plugin->act_pluginPath . '/documentation_' . $serendipity['lang'] . '.html">' . PLUGIN_DOCUMENTATION_LOCAL . '</a>';
-                } elseif (@file_exists(dirname($plugin->pluginFile) . '/documentation_en.html')) {
-                    echo '<br /><a href="plugins/' . $plugin->act_pluginPath . '/documentation_en.html">' . PLUGIN_DOCUMENTATION_LOCAL . '</a>';
-                } elseif (@file_exists(dirname($plugin->pluginFile) . '/documentation.html')) {
-                    echo '<br /><a href="plugins/' . $plugin->act_pluginPath . '/documentation.html">' . PLUGIN_DOCUMENTATION_LOCAL . '</a>';
-                } elseif (@file_exists(dirname($plugin->pluginFile) . '/README')) {
-                    echo '<br /><a href="plugins/' . $plugin->act_pluginPath . '/README">' . PLUGIN_DOCUMENTATION_LOCAL . '</a>';
-                }
-            ?>
-            </td>
-        </tr>
-         <?php
-            if (!empty($license)) {
-                echo '<tr><th>'.MEDIA_PROPERTY_COPYRIGHT.'</th><td>'.$license.'</td></tr>';
-            }
-        ?>
-    </table>
-<br />
-
-<?php serendipity_plugin_config($plugin, $bag, $name, $desc, $config_names, true, true, true, true, 'plugin', $config_groups); ?>
-</form>
-<?php
+    $data['license'] = $license;
+    $data['config'] = serendipity_plugin_config($plugin, $bag, $name, $desc, $config_names, true, true, true, true, 'plugin', $config_groups);
 
 } elseif ( $serendipity['GET']['adminAction'] == 'addnew' ) {
-?>
-<?php if ( $serendipity['GET']['type'] == 'event' ) { ?>
-    <h2><?php echo EVENT_PLUGINS ?></h2>
-<?php } else { ?>
-    <h2><?php echo SIDEBAR_PLUGINS ?></h2>
-<?php } ?>
-<br />
-<?php
+
+    $data['adminAction'] = 'addnew';
+    $data['type'] = $serendipity['GET']['type'];
+
     $foreignPlugins = $pluginstack = $errorstack = array();
     serendipity_plugin_api::hook_event('backend_plugins_fetchlist', $foreignPlugins);
     $pluginstack = array_merge((array)$foreignPlugins['pluginstack'], $pluginstack);
@@ -274,11 +252,11 @@ if (isset($_GET['serendipity']['plugin_to_conf'])) {
             $pluggroups[''][] = $plugdata;
         }
     }
+
     ksort($pluggroups);
 
-    foreach($errorstack as $e_idx => $e_name) {
-        echo ERROR . ': ' . $e_name . '<br />';
-    }
+    $data['count_pluginstack'] = count($pluginstack);
+    $data['errorstack'] = $errorstack;
 
     if ($serendipity['GET']['only_group'] == 'UPGRADE') {
         serendipity_plugin_api::hook_event('backend_pluginlisting_header_upgrade', $pluggroups);
@@ -287,6 +265,18 @@ if (isset($_GET['serendipity']['plugin_to_conf'])) {
 <table cellspacing="0" cellpadding="0" border="0" width="100%">
 <?php
     $available_groups = array_keys($pluggroups);
+    $data['available_groups'] = $available_groups;
+    $groupnames = array();
+    foreach($available_groups as $available_group) {
+        $groupnames[$available_group] = serendipity_groupname($available_group);
+    }
+    $data['groupnames'] = $groupnames;
+    $data['pluggroups'] = $pluggroups;
+    $data['formToken'] = serendipity_setFormToken();
+    $data['only_group'] = $serendipity['GET']['only_group'];
+    $data['available_upgrades'] = isset($pluggroups['UPGRADE']);
+    $requirement_failures = array();
+
     foreach($pluggroups AS $pluggroup => $groupstack) {
         if (empty($pluggroup)) {
         ?>
@@ -377,56 +367,21 @@ if (isset($_GET['serendipity']['plugin_to_conf'])) {
                 $notice['requirements_failures'][] = 'PHP ' . $plug['requirements']['php'];
             }
 
-            /* Enable after Smarty 2.6.7 upgrade.
-             * TODO: How can we get current Smarty version here? $smarty is not created!
-            if ( !empty($plug['requirements']['smarty']) && version_compare($plug['requirements']['smarty'], '2.6.7', '>') ) {
-                $notice['requirements_failures'][] = 'Smarty: ' . $plug['requirements']['smarty'];
-            }
-            */
-
-            if (count($notice['requirements_failures']) > 0) {
-                $plug['requirements_fail'] = true;
+            if ( !empty($plug['requirements']['smarty']) && version_compare($plug['requirements']['smarty'], str_replace('Smarty-', '', Smarty::SMARTY_VERSION), '>') ) {
+                if (isset($requirement_failures[$plug['class_name']])) {
+                     $requirement_failures[$plug['class_name']] = array_merge($requirement_failures[$plug['class_name']] , array("smarty" => true));
+                } else {
+                    $requirement_failures[$plug['class_name']] = array("smarty" => true);
+                }
             }
 
-?>
-    <tr id="serendipity_plugin_<?php echo $plug['class_name']; ?>">
-        <td colspan="2" <?php echo $jsLine ?>>
-            <table width="100%" cellpadding="3" cellspacing="0" border="0">
-                <tr>
-                    <td><strong><?php echo $plug['name'] ?></strong></td>
-                    <td width="100" align="center" valign="middle" rowspan="3">
-                        <?php if ( $plug['requirements_fail'] == true ) { ?>
-                            <span style="color: #cccccc"><?php printf(UNMET_REQUIREMENTS, implode(', ', $notice['requirements_failures'])); ?></span>
-                        <?php } elseif ( $plug['upgradable'] == true ) { ?>
-                            <a href="?serendipity[adminModule]=plugins&amp;serendipity[pluginPath]=<?php echo $plug['pluginPath']; ?>&amp;serendipity[install_plugin]=<?php echo $plug['plugin_class'] . $plug['customURI'] ?>"><img src="<?php echo serendipity_getTemplateFile('admin/img/upgrade_now.png') ?>" title="<?php echo UPGRADE ?>" alt="<?php echo UPGRADE ?>" border="0" /></a>
-                        <?php } elseif ($plug['installable'] == true) { ?>
-                            <a href="?serendipity[adminModule]=plugins&amp;serendipity[pluginPath]=<?php echo $plug['pluginPath']; ?>&amp;serendipity[install_plugin]=<?php echo $plug['plugin_class'] . $plug['customURI'] ?>"><img src="<?php echo $installimage ?>" title="<?php echo INSTALL ?>" alt="<?php echo INSTALL ?>" border="0" /></a>
-                        <?php } else { ?>
-                            <span style="color: #cccccc"><?php echo ALREADY_INSTALLED ?></span>
-                        <?php } ?>
-                    </td>
-                </tr>
-                <tr>
-                    <td style="padding-left: 10px"><?php echo $plug['description'] ?></td>
-                </tr>
-<?php       if (count($pluginInfo) > 0) { ?>
-                <tr>
-                    <td style="padding-left: 10px; font-size: x-small">(<?php echo $plug['class_name']; ?>) <?php echo implode('; ', $pluginInfo); ?></td>
-                </tr>
-<?php       } ?>
-            </table>
-        </td>
-    </tr>
-<?php
         }
     }
-?>
-    <tr>
-        <td colspan="2" align="right"><?php printf(PLUGIN_AVAILABLE_COUNT, count($pluginstack)); ?></td>
-    </tr>
-</table>
 
-<?php
+    $data['requirements_failues'] = $requirement_failures;
+
+} elseif ( $serendipity['GET']['adminAction'] == 'renderOverlay' ) {
+    $data['adminAction'] = 'overlay';
 } else {
     /* show general plugin list */
 
@@ -441,6 +396,7 @@ if (isset($_GET['serendipity']['plugin_to_conf'])) {
         'event_col'  => 'event',
         'eventh_col' => 'eventh'
     );
+
     if (isset($template_vars['sidebars'])) {
         $sidebars = explode(',', $template_vars['sidebars']);
     } elseif (isset($serendipity['sidebars'])) {
@@ -453,46 +409,23 @@ if (isset($_GET['serendipity']['plugin_to_conf'])) {
         $col_assoc[$sidebar . '_col'] = $sidebar;
     }
 
-    /* preparse Javascript-generated input */
-    if (isset($_POST['SAVE']) && !empty($_POST['serendipity']['pluginorder'])) {
-        $parts = explode(':', $_POST['serendipity']['pluginorder']);
+    if (isset($_POST['SAVE'])  && serendipity_checkFormToken()) {
+        $pos=0;
+        foreach($_POST['serendipity']['plugin'] as $plugin) {
+            serendipity_db_query("UPDATE {$serendipity['dbPrefix']}plugins
+                                     SET sort_order = ".  $pos . "
+                                   WHERE name='" . serendipity_db_escape_string($plugin['id']) . "'");
 
-        foreach($parts AS $sidepart) {
-            preg_match('@^(.+)\((.*)\)$@imsU', $sidepart, $matches);
-            if (!isset($col_assoc[$matches[1]])) {
-                continue;
-            }
-            $pluginsidelist = explode(',', $matches[2]);
-            foreach($pluginsidelist AS $pluginname) {
-                $pluginname = trim(urldecode(str_replace(array('s9ycid', '-'), array('', '%'), $pluginname)));
-
-                if (empty($pluginname)) {
-                    continue;
-                }
-                $serendipity['POST']['placement'][$pluginname] = $col_assoc[$matches[1]];
-                $new_order[] = $pluginname;
-
-            }
-        }
-
-        if (is_array($new_order)) {
-            foreach($new_order AS $new_order_pos => $order_plugin) {
-                serendipity_db_query("UPDATE {$serendipity['dbPrefix']}plugins SET sort_order = ". (int)$new_order_pos . " WHERE name='" . serendipity_db_escape_string($order_plugin) . "'");
-            }
-        }
-    }
-
-    if (isset($_POST['SAVE']) && isset($_POST['serendipity']['placement']) && serendipity_checkFormToken()) {
-        foreach ($_POST['serendipity']['placement'] as $plugin_name => $placement) {
             serendipity_plugin_api::update_plugin_placement(
-                addslashes($plugin_name),
-                addslashes($placement)
+                addslashes($plugin['id']),
+                addslashes($plugin['placement'])
             );
 
             serendipity_plugin_api::update_plugin_owner(
-                addslashes($plugin_name),
-                addslashes($_POST['serendipity']['ownership'][$plugin_name])
+                addslashes($plugin['id']),
+                addslashes($_POST['serendipity']['ownership'][$plugin['name']])
             );
+            $pos++;
         }
     }
 
@@ -501,23 +434,49 @@ if (isset($_GET['serendipity']['plugin_to_conf'])) {
         if (serendipity_checkPermission('adminPluginsMaintainOthers')) {
             $authorid = '0';
         }
-
+        if ($serendipity['ajax']) {
+             // we need to catch the spartacus messages to return only them to the ajax call (used by the update all button)
+            ob_start();
+        }
         $fetchplugin_data = array('GET'     => &$serendipity['GET'],
                                   'install' => true);
+       
+           
         serendipity_plugin_api::hook_event('backend_plugins_fetchplugin', $fetchplugin_data);
 
+        // we now have to check that the plugin is not already installed, or stackable, to prevent invalid double instances
+        $new_plugin = true;
         if ($fetchplugin_data['install']) {
+            // spartacus will set this to false on upgrade, and we want to check this only on install
+            foreach (serendipity_plugin_api::get_installed_plugins() as $pluginName) {
+                if ($serendipity['GET']['install_plugin'] === $pluginName) {
+                    $existingPlugin =& serendipity_plugin_api::load_plugin($serendipity['GET']['install_plugin']);
+                    if (is_object($existingPlugin)) {
+                        $bag = new serendipity_property_bag();
+                        $existingPlugin->introspect($bag);
+                        if ($bag->get('stackable') != true) {
+                            $new_plugin = false;
+                        }
+                    }
+                    break;
+                }
+            }
+        }
+
+        $data['new_plugin_failed'] = ! $new_plugin;
+
+        if ($fetchplugin_data['install'] && $new_plugin) {
             $serendipity['debug']['pluginload'] = array();
             $inst = serendipity_plugin_api::create_plugin_instance($serendipity['GET']['install_plugin'], null, (serendipity_plugin_api::is_event_plugin($serendipity['GET']['install_plugin']) ? 'event': 'right'), $authorid, serendipity_db_escape_string($serendipity['GET']['pluginPath']));
 
             /* Load the new plugin */
             $plugin = &serendipity_plugin_api::load_plugin($inst);
             if (!is_object($plugin)) {
-                echo "DEBUG: Plugin " . htmlspecialchars($inst) . " not an object: " . htmlspecialchars(print_r($plugin, true)) 
-                     . ".<br />Input: " . htmlspecialchars(print_r($serendipity['GET'], true)) . ".<br /><br />\n\nThis error 
+                echo "DEBUG: Plugin " . serendipity_specialchars($inst) . " not an object: " . serendipity_specialchars(print_r($plugin, true)) 
+                     . ".<br />Input: " . serendipity_specialchars(print_r($serendipity['GET'], true)) . ".<br /><br />\n\nThis error 
                      can happen if a plugin was not properly downloaded (check your plugins directory if the requested plugin 
                      was downloaded) or the inclusion of a file failed (permissions?)<br />\n";
-                echo "Backtrace:<br />\n" . nl2br(htmlspecialchars(implode("\n", $serendipity['debug']['pluginload']))) . "<br />";
+                echo "Backtrace:<br />\n" . nl2br(serendipity_specialchars(implode("\n", $serendipity['debug']['pluginload']))) . "<br />";
             }
             $bag  = new serendipity_property_bag;
             $plugin->introspect($bag);
@@ -536,6 +495,10 @@ if (isset($_GET['serendipity']['plugin_to_conf'])) {
         } else {
             serendipity_plugin_api::hook_event('backend_plugins_update', $serendipity['GET']['install_plugin'], $fetchplugin_data);
         }
+        if ($serendipity['ajax']) {
+            $data['ajax_output'] = ob_get_contents();
+            ob_end_clean();
+        }
     }
 
     if (isset($_POST['REMOVE']) && serendipity_checkFormToken()) {
@@ -549,42 +512,38 @@ if (isset($_GET['serendipity']['plugin_to_conf'])) {
             }
         }
     }
-?>
-
-<?php if (isset($_POST['SAVE'])) { ?>
-    <div class="serendipityAdminMsgSuccess"><img style="width: 22px; height: 22px; border: 0px; padding-right: 4px; vertical-align: middle" src="<?php echo serendipity_getTemplateFile('admin/img/admin_msg_success.png'); ?>" alt="" /><?php echo DONE .': '. sprintf(SETTINGS_SAVED_AT, serendipity_strftime('%H:%M:%S')); ?></div>
-<?php } ?>
-
-    <div><?php echo BELOW_IS_A_LIST_OF_INSTALLED_PLUGINS ?></div>
-<?php
-    if (!isset($serendipity['eyecandy']) || serendipity_db_bool($serendipity['eyecandy'])) {
-        echo '<script src="' . serendipity_getTemplateFile('dragdrop.js') . '" type="text/javascript"></script>';
-        echo '<div class="warning js_warning"><em>' . PREFERENCE_USE_JS_WARNING . '</em></div>';
+    if (isset($_POST['SAVE'])) {
+        $data['save'] = true;
+        $data['timestamp'] = serendipity_strftime('%H:%M:%S');
     }
 
-    serendipity_plugin_api::hook_event('backend_pluginlisting_header', $serendipity['eyecandy']);
-?>
-    <br />
+    ob_start();
+    serendipity_plugin_api::hook_event('backend_pluginlisting_header', $null);
+    $data['backend_pluginlisting_header'] = ob_get_contents();
+    ob_end_clean();
 
-    <h3><?php echo SIDEBAR_PLUGINS ?></h3>
-    <a href="?serendipity[adminModule]=plugins&amp;serendipity[adminAction]=addnew" class="serendipityIconLink"><img src="<?php echo serendipity_getTemplateFile('admin/img/install.png') ?>" style="border: 0px none ; vertical-align: middle; display: inline;" alt="" /><?php echo sprintf(CLICK_HERE_TO_INSTALL_PLUGIN, SIDEBAR_PLUGIN) ?></a>
-    <?php serendipity_plugin_api::hook_event('backend_plugins_sidebar_header', $serendipity); ?>
-    <?php show_plugins(false, $sidebars); ?>
 
-    <br />
-    <br />
+    ob_start();
+    serendipity_plugin_api::hook_event('backend_plugins_sidebar_header', $serendipity);
+    $data['backend_plugins_sidebar_header'] = ob_get_contents();
+    ob_end_clean();
 
-    <h3><?php echo EVENT_PLUGINS ?></h3>
-    <a href="?serendipity[adminModule]=plugins&amp;serendipity[adminAction]=addnew&amp;serendipity[type]=event" class="serendipityIconLink"><img src="<?php echo serendipity_getTemplateFile('admin/img/install.png') ?>" style="border: 0px none ; vertical-align: middle; display: inline;" alt="" /><?php echo sprintf(CLICK_HERE_TO_INSTALL_PLUGIN, EVENT_PLUGIN) ?></a>
-    <?php serendipity_plugin_api::hook_event('backend_plugins_event_header', $serendipity); ?>
-    <?php show_plugins(true); ?>
+    $data['sidebar_plugins'] = show_plugins(false, $sidebars);
 
-    <?php if (count($serendipity['memSnaps']) > 0) { ?>
-    <h3>Memory Usage</h3>
-    <div>
-        <pre><?php print_r($serendipity['memSnaps']); ?></pre>
-    </div>
-    <?php } ?>
-<?php
+    ob_start();
+    serendipity_plugin_api::hook_event('backend_plugins_event_header', $serendipity);
+    $data['backend_plugins_event_header'] = ob_get_contents();
+    ob_end_clean();
+
+    $data['event_plugins'] = show_plugins(true);
+
+    if (count($serendipity['memSnaps']) > 0) {
+        $data['$memsnaps'] = $serendipity['memSnaps'];
+    }
+    $data['updateAllMsg'] = isset($serendipity['GET']['updateAllMsg']);
 }
+
+echo serendipity_smarty_show('admin/plugins.inc.tpl', $data);
+
+
 /* vim: set sts=4 ts=4 expandtab : */

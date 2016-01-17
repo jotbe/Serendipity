@@ -1,8 +1,8 @@
 # BEGIN s9y
 ErrorDocument 404 {PREFIX}{indexFile}
 DirectoryIndex {PREFIX}{indexFile}
-Options -MultiViews
 
+<IfModule mod_rewrite.c>
 RewriteEngine On
 RewriteBase {PREFIX}
 RewriteRule ^serendipity_admin.php serendipity_admin.php [NC,L,QSA]
@@ -24,10 +24,12 @@ RewriteRule ^{PAT_PLUGIN} {indexFile}?url=$1/$2 [L,QSA]
 RewriteRule ^{PAT_SEARCH} {indexFile}?url=/{PATH_SEARCH}/$1 [L,QSA]
 RewriteRule ^{PAT_COMMENTS} {indexFile}?url=/{PATH_COMMENTS}/$1 [L,QSA]
 RewriteRule ^{PAT_CSS} {indexFile}?url=/$1 [L,QSA]
+RewriteRule ^{PAT_JS}$ {indexFile}?url=/$1 [L,QSA] 
 RewriteRule ^index\.(html?|php.+) {indexFile}?url=index.html [L,QSA]
 RewriteRule ^htmlarea/(.*) htmlarea/$1 [L,QSA]
 #RewriteCond %{REQUEST_URI} !-U
 RewriteRule (.*\.html?) {indexFile}?url=/$1 [L,QSA]
+</IfModule>
 
 <Files *.tpl.php>
     deny from all

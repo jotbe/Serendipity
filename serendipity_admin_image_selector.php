@@ -1,4 +1,4 @@
-<?php # $Id$
+<?php
 # Copyright (c) 2003-2005, Jannis Hermanns (on behalf the Serendipity Developer Team)
 # All rights reserved.  See LICENSE file for licensing details
 
@@ -121,7 +121,7 @@ switch ($serendipity['GET']['step']) {
         serendipity_plugin_api::hook_event('media_getproperties_cached', $media['file']['props']['base_metadata'], $media['file']['realfile']);
 
         if ($file['is_image']) {
-            $file['finishJSFunction'] = $file['origfinishJSFunction'] = 'serendipity_imageSelector_done(\'' . htmlspecialchars($serendipity['GET']['textarea']) . '\')';
+            $file['finishJSFunction'] = $file['origfinishJSFunction'] = 'serendipity.serendipity_imageSelector_done(\'' . serendipity_specialchars($serendipity['GET']['textarea']) . '\')';
 
             if (!empty($serendipity['GET']['filename_only']) && $serendipity['GET']['filename_only'] !== 'true') {
                 $file['fast_select'] = true;
@@ -254,7 +254,7 @@ switch ($serendipity['GET']['step']) {
             unset($media['file']);
             unset($file);
         }
-        $showFile = 'admin/media_showitem.tpl';
+        $showFile = 'media_showitem.tpl';
         break;
 
     case 'start':
@@ -277,30 +277,26 @@ switch ($serendipity['GET']['step']) {
         $media['case'] = 'default';
         $add_url = '';
         if (!empty($serendipity['GET']['htmltarget'])) {
-            $add_url .= '&amp;serendipity[htmltarget]=' . htmlspecialchars($serendipity['GET']['htmltarget']);
+            $add_url .= '&amp;serendipity[htmltarget]=' . serendipity_specialchars($serendipity['GET']['htmltarget']);
         }
 
         if (!empty($serendipity['GET']['filename_only'])) {
-            $add_url .= '&amp;serendipity[filename_only]=' . htmlspecialchars($serendipity['GET']['filename_only']);
+            $add_url .= '&amp;serendipity[filename_only]=' . serendipity_specialchars($serendipity['GET']['filename_only']);
         }
 
         if (!isset($serendipity['thumbPerPage2'])) {
             $serendipity['thumbPerPage2'] = 3;
         }
 
-        ob_start();
-        $block = serendipity_displayImageList(
+
+        $media['external'] = serendipity_displayImageList(
           isset($serendipity['GET']['page'])   ? $serendipity['GET']['page']   : 1,
           $serendipity['thumbPerPage2'],
           ($serendipity['showMediaToolbar'] ? true : false),
-          '?serendipity[step]=1' . $add_url . '&amp;serendipity[textarea]='. htmlspecialchars($serendipity['GET']['textarea']),
+          '?serendipity[step]=1' . $add_url . '&amp;serendipity[textarea]='. serendipity_specialchars($serendipity['GET']['textarea']),
           true,
-          null,
-          false
+          null
         );
-        $media['external'] = ob_get_contents();
-        ob_end_clean();
-        serendipity_smarty_fetch('MEDIA_LIST', $block);
 }
 
 $media = array_merge($serendipity['GET'], $media);

@@ -1,5 +1,5 @@
 <?php
-# mysql_sqlrelay.inc.php modified from mysql.inc.php  2007-10-06 
+# mysql_sqlrelay.inc.php modified from mysql.inc.php  2007-10-06
 # dantemason@gmail.com
 
 /**
@@ -161,13 +161,13 @@ function &serendipity_db_query($sql, $single = false, $result_type = "both", $re
     }
 
     if (!$expectError && sqlrcur_errorMessage($cur) != '') {
-        $msg = '<pre>' . htmlspecialchars($sql) . '</pre> / ' . htmlspecialchars(sqlrcur_errorMessage($cur));
+        $msg = '<pre>' . serendipity_specialchars($sql) . '</pre> / ' . serendipity_specialchars(sqlrcur_errorMessage($cur));
         return $msg;
     }
 
     if (!$c) {
         if (!$expectError && !$serendipity['production']) {
-            print '<pre>' . htmlspecialchars($sql) . '</pre> / ' . htmlspecialchars(sqlrcur_errorMessage($cur));
+            print '<pre>' . serendipity_specialchars($sql) . '</pre> / ' . serendipity_specialchars(sqlrcur_errorMessage($cur));
             if (function_exists('debug_backtrace') && $reportErr == true) {
                 highlight_string(var_export(debug_backtrace(), 1));
             }
@@ -230,7 +230,7 @@ function &serendipity_db_query($sql, $single = false, $result_type = "both", $re
  * @access public
  * @return int      Value of the auto-increment column
  *
- * If you insert multiple rows using a single INSERT statement, 
+ * If you insert multiple rows using a single INSERT statement,
  * LAST_INSERT_ID() returns the value generated for the first inserted row only.
  */
 function serendipity_db_insert_id($table = '', $id = '') {
@@ -269,9 +269,9 @@ function serendipity_db_affected_rows() {
     global $serendipity;
 
     /* int sqlrcur_affectedRows(int sqlrcurref)
-     * Returns the number of rows that were updated, inserted or deleted by the query. 
-     * Not all databases support this call. 
-     * Don't use it for applications which are designed to be portable across databases. 
+     * Returns the number of rows that were updated, inserted or deleted by the query.
+     * Not all databases support this call.
+     * Don't use it for applications which are designed to be portable across databases.
      * -1 is returned by databases which don't support this option.
      */
 
@@ -435,7 +435,7 @@ function serendipity_db_reconnect() {
 
     if (isset($serendipity['dbCharset'])) {
         serendipity_db_query("SET NAMES " . $serendipity['dbCharset']);
-        define('SQL_CHARSET_INIT', true);
+        @define('SQL_CHARSET_INIT', true);
     } elseif (defined('SQL_CHARSET') && $serendipity['dbNames'] && !defined('SQL_CHARSET_INIT')) {
         serendipity_db_query("SET NAMES " . SQL_CHARSET);
     }
@@ -476,7 +476,7 @@ function serendipity_db_schema_import($query) {
         case "postgresql":
             static $search  = array('{AUTOINCREMENT}', '{PRIMARY}', '{UNSIGNED}',
                 '{FULLTEXT}', '{FULLTEXT_MYSQL}', '{BOOLEAN}', 'int(1)', 'int(10)', 'int(11)', 'int(4)', '{UTF_8}', '{TEXT}');
-            static $replace = array('SERIAL', 'primary key', '', 
+            static $replace = array('SERIAL', 'primary key', '',
                 '', '', 'BOOLEAN NOT NULL', 'int2', 'int4', 'int4', 'int4', '', 'text');
             break;
 

@@ -1,4 +1,4 @@
-<?php # $Id$
+<?php
 # Copyright (c) 2003-2005, Jannis Hermanns (on behalf the Serendipity Developer Team)
 # All rights reserved.  See LICENSE file for licensing details
 
@@ -77,12 +77,24 @@
                                           'permission'  => 'personalConfiguration',
                                           'flags'       => array('config')),
 
-                                    array('var'         => 'eyecandy',
-                                          'title'       => PREFERENCE_USE_JS,
-                                          'description' => PREFERENCE_USE_JS_DESC,
-                                          'type'        => 'bool',
-                                          'default'     => true,
+                                    array('var'         => 'wysiwygToolbar',
+                                          'title'       => USERCONF_USE_CORE_WYSIWYG_TOOLBAR,
+                                          'description' => USERCONF_USE_CORE_WYSIWYG_TOOLBAR_DESC,
+                                          'type'        => 'list',
                                           'permission'  => 'personalConfiguration',
+                                          'default'     => array(
+                                              'Default'  => USERCONF_WYSIWYG_PRESET_S9Y,
+                                              'Basic'    => USERCONF_WYSIWYG_PRESET_BASIC,
+                                              'Full'     => USERCONF_WYSIWYG_PRESET_FULL,
+                                              'Standard' => USERCONF_WYSIWYG_PRESET_STANDARD,
+                                              'CKE'      => USERCONF_WYSIWYG_PRESET_CKE,
+                                              '----',
+                                              'NOCC-Default'  => USERCONF_WYSIWYG_PRESET_NOCC_S9Y,
+                                              'NOCC-Basic'    => USERCONF_WYSIWYG_PRESET_NOCC_BASIC,
+                                              'NOCC-Full'     => USERCONF_WYSIWYG_PRESET_NOCC_FULL,
+                                              'NOCC-Standard' => USERCONF_WYSIWYG_PRESET_NOCC_STANDARD,
+                                              'NOCC-CKE'      => USERCONF_WYSIWYG_PRESET_NOCC_CKE
+                                              ),
                                           'flags'       => array('config')),
 
                                     array('var'         => 'mail_comments',
@@ -114,7 +126,41 @@
                                           'type'        => 'bool',
                                           'default'     => true,
                                           'permission'  => 'personalConfigurationRightPublish',
-                                          'view'        => 'dangerous')
+                                          'view'        => 'dangerous'),
+
+                                    array('var'         => 'simpleFilters',
+                                          'title'       => SIMPLE_FILTERS,
+                                          'description' => SIMPLE_FILTERS_DESC,
+                                          'type'        => 'bool',
+                                          'permission'  => 'personalConfiguration',
+                                          'default'     => true,
+                                          'flags'       => array('config')),
+
+
+                                    array('var'         => 'enableBackendPopup',
+                                          'title'       => INSTALL_BACKENDPOPUP,
+                                          'description' => INSTALL_BACKENDPOPUP_DESC,
+                                          'type'        => 'bool',
+                                          'default'     => false,
+                                          'flags'       => array('config'),
+                                          'permission'  => 'personalConfiguration'),
+
+                                    array('var'         => 'enableBackendPopupGranular',
+                                          'title'       => INSTALL_BACKENDPOPUP_GRANULAR,
+                                          'description' => INSTALL_BACKENDPOPUP_GRANULAR_DESC
+                                                            . 'images, comments, categories, tags, links.',
+                                          'type'        => 'string',
+                                          'permission'  => 'personalConfiguration',
+                                          'default'     => '',
+                                          'flags'       => array('config')),
+
+                                    array('var'         => 'showMediaToolbar',
+                                          'title'       => SHOW_MEDIA_TOOLBAR,
+                                          'description' => '',
+                                          'type'        => 'bool',
+                                          'default'     => false,
+                                          'permission'  => 'personalConfiguration',
+                                          'flags'       => array('config')),
                             ));
 
     $res['defaults'] =
@@ -145,11 +191,11 @@
                                           'permission'  => 'personalConfiguration',
                                           'flags'       => array('config')),
 
-                                    array('var'         => 'showMediaToolbar',
-                                          'title'       => SHOW_MEDIA_TOOLBAR,
-                                          'description' => '',
+                                    array('var'         => 'use_autosave',
+                                          'title'       => CONF_USE_AUTOSAVE,
+                                          'description' => CONF_USE_AUTOSAVE_DESC,
                                           'type'        => 'bool',
-                                          'default'     => false,
+                                          'default'     => true,
                                           'permission'  => 'personalConfiguration',
                                           'flags'       => array('config')),
                             ));

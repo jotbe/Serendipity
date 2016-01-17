@@ -1,6 +1,4 @@
-<?php # $Id$
-# Copyright (c) 2003-2005, Jannis Hermanns (on behalf the Serendipity Developer Team)
-# All rights reserved.  See LICENSE file for licensing details
+<?php
 
 if (IN_serendipity !== true) {
     die ('Don\'t hack!');
@@ -82,7 +80,7 @@ $tasks = array(array('version'   => '0.5.1',
                      'function'  => 'serendipity_removeFiles',
                      'title'     => 'Removal of obsolete files',
                      'arguments' => array($obsolete_files),
-                     'desc'      => 'The directory structure has been reworked. The following files will be moved to a folder called "backup". If you made manual changes to those files, be sure to read the file docs/CHANGED_FILES to re-implement your changes.<br /><div style="font-size: x-small; margin: 15px">' . implode(', ', $obsolete_files) . '</div>'),
+                     'desc'      => '<p>The directory structure has been reworked. The following files will be moved to a folder called "backup". If you made manual changes to those files, be sure to read the file docs/CHANGED_FILES to re-implement your changes.</p><pre>' . implode(', ', $obsolete_files) . '</pre>'),
 
                array('version'   => '0.8-alpha4',
                      'function'  => 'serendipity_removeFiles',
@@ -186,6 +184,74 @@ $tasks = array(array('version'   => '0.5.1',
                      'title'     => 'Remove obsolete plugin',
                      'desc'      => 'The "browsercompatibility" plugin is no longer supported (and no longer required with recent browsers), so it will be automatically uninstalled.'),
 
+               array('version'   => '2.0-alpha2',
+                     'function'  => 'serendipity_removeDeadFiles_SPL',
+                     'title'     => 'Removal of obsolete and dead Smarty 2.6.x files',
+                     'arguments' => array($serendipity['serendipityPath'] . 'bundled-libs/Smarty', $dead_smarty_files, array('internals'), true),
+                     'desc'      => 'Smarty 3.x brought a new file structure. The following dead files will be removed from "bundled-libs/Smarty/libs".<br /><pre>' . implode(', ', $dead_smarty_files) . '</pre>'),
+
+               array('version'   => '2.0-alpha3',
+                     'function'  => 'serendipity_upgrader_rename_plugins',
+                     'title'     => 'Move internal plugins to "normal" plugin directory structure.',
+                     'desc'      => 'A list of internal plugins that previously lived in include/plugin_internal.inc.php were moved into the proper plugins/ subdirectory structure. This task will migrate any possible references to such plugins to the new format.'),
+
+               array('version'   => '2.0-alpha4',
+                     'function'  => 'serendipity_removeDeadFiles_SPL',
+                     'title'     => 'Removal of obsolete and dead htmlarea files',
+                     'arguments' => array($serendipity['serendipityPath'] . 'htmlarea', $dead_htmlarea_files, array('internals'), true),
+                     'desc'      => 'Serendipity 2.0 replaces old WYSIWYG-Editors in htmlarea directory with CKEDITOR. The following dead files will be removed from "/htmlarea".<br /><pre>' . implode(', ', $dead_htmlarea_files) . '</pre>'),
+
+               array('version'   => '2.0-alpha4',
+                     'function'  => 'recursive_directory_iterator',
+                     'title'     => 'Removal of obsolete and dead htmlarea directories',
+                     'arguments' => array($dead_htmlarea_dirs),
+                     'desc'      => 'Serendipity 2.0 replaces old WYSIWYG-Editors in htmlarea directory with CKEDITOR. The following dead directories will be completely removed from "/htmlarea".<br /><pre>' . implode(', ', $dead_htmlarea_dirs) . '</pre>'),
+
+               array('version'   => '2.0-beta3',
+                     'function'  => 'serendipity_upgrader_move_syndication_config',
+                     'title'     => 'Export syndication plugin options',
+                     'desc'      => 'Serendipity 2.0 moved the more generic feed option from the syndication plugin into the core. They will be set equivalent to their old configuration.'),
+
+               array('version'   => '2.0-beta5',
+                     'function'  => 'serendipity_killPlugin',
+                     'arguments' => array('serendipity_event_autosave'),
+                     'title'     => 'Remove autosave plugin',
+                     'desc'      => 'Serendipity 2.0 includes autosave functionality, and the autosave plugin collides with new functionality. It has to be removed.'),
+
+               array('version'   => '2.0-beta5',
+                     'function'  => 'serendipity_killPlugin',
+                     'arguments' => array('serendipity_event_dashboard'),
+                     'title'     => 'Remove dashboard plugin',
+                     'desc'      => 'Serendipity 2.0 includes a dashboard in the admin theme. The separate plugin for 1.x has to be removed.'),
+
+               array('version'   => '2.0-beta6',
+                     'function'  => 'serendipity_installFiles',
+                     'title'     => 'Update of .htaccess file',
+                     'desc'      => 'Changes were made to the .htaccess file to allow for new patterns, it will be recreated. If you manually modified the file, make sure your modification are in place afterwards.'),
+
+               array('version'   => '2.0.2',
+                     'function'  => 'serendipity_removeDeadFiles_SPL',
+                     'title'     => 'Removal of obsolete and still resting files in 2.0',
+                     'arguments' => array(substr($serendipity['serendipityPath'], 0, -1), $dead_files_200, array('internals'), true),
+                     'desc'      => 'The following old dead files will be removed from your system.<br><pre>' . implode(', ', $dead_files_200) . '</pre>'),
+
+               array('version'   => '2.0.2',
+                     'function'  => 'recursive_directory_iterator',
+                     'title'     => 'Removal of obsolete and dead directories',
+                     'arguments' => array($dead_dirs_200),
+                     'desc'      => 'The following old dead directories will be removed from your system.<br><pre>' . implode(', ', $dead_dirs_200) . '</pre>'),
+                     
+               array('version'   => '2.0.2',
+                     'function'  => 'serendipity_upgrader_rewriteFeedIcon',
+                     'title'     => 'Rewrite path of big feedicon',
+                     'desc'      => 'Rewrite path of the big feedicon to not include the template path, since that path is not automatically detected'),
+
+               array('version'   => '2.1.0',
+                     'function'  => 'serendipity_removeDeadFiles_SPL',
+                     'title'     => 'Removal of old dead files in v.2.0.2',
+                     'arguments' => array(substr($serendipity['serendipityPath'], 0, -1), $dead_files_202, array('internals'), true),
+                     'desc'      => 'The following old dead files will be removed from your system.<br><pre>' . implode(', ', $dead_files_202) . '</pre>'),
+
 );
 
 /* Fetch SQL files which needs to be run */
@@ -217,6 +283,7 @@ if ($serendipity['GET']['action'] == 'ignore') {
     /* Todo: Don't know what to put here? */
 
 } elseif ($serendipity['GET']['action'] == 'upgrade') {
+    serendipity_smarty_purge();
 
     $errors = array();
 
@@ -298,23 +365,18 @@ if (($showAbort && $serendipity['GET']['action'] == 'ignore') || $serendipity['G
     $errorCount = 0;
     $showWritableNote = false;
     $basedir = $serendipity['serendipityPath'];
-?>
-<div align="center">
-<table class="serendipity_admin_list_item serendipity_admin_list_item_even" width="90%" align="center">
-<?php if (is_readable($basedir . 'checksums.inc.php')) {
-    $badsums = serendipity_verifyFTPChecksums();
-?>
-    <tr>
-        <td colspan="2" style="font-weight: bold"><?php echo INTEGRITY ?></td>
-    </tr>
-    <tr>
-        <td width="200"><?php
-            if ( empty($badsums) ) {
-                echo serendipity_upgraderResultDiagnose(S9Y_U_SUCCESS, CHECKSUMS_PASS);
-            } else {
-                foreach ($badsums as $rfile => $sum) {
-                    echo serendipity_upgraderResultDiagnose(S9Y_U_WARNING, sprintf(CHECKSUM_FAILED, $rfile)) . "<br />\n";
-                }
+    $data['basedir'] = $basedir;
+
+    $data['upgraderResultDiagnose1'] = array();
+    if (is_readable($basedir . 'checksums.inc.php')) {
+        $data['checksums'] = true;
+        $badsums = serendipity_verifyFTPChecksums();
+
+        if ( empty($badsums) ) {
+            $data['upgraderResultDiagnose1'][] = serendipity_upgraderResultDiagnose(S9Y_U_SUCCESS, CHECKSUMS_PASS);
+        } else {
+            foreach ($badsums as $rfile => $sum) {
+                $data['upgraderResultDiagnose1'][] = serendipity_upgraderResultDiagnose(S9Y_U_WARNING, sprintf(CHECKSUM_FAILED, $rfile));
             }
      ?></td>
     </tr>
@@ -361,47 +423,39 @@ if (($showAbort && $serendipity['GET']['action'] == 'ignore') || $serendipity['G
                 echo serendipity_upgraderResultDiagnose(S9Y_U_ERROR, NOT_WRITABLE);
                 $showWritableNote = true;
             }
-     ?></td>
-    </tr>
-<?php if (is_dir($basedir . $serendipity['uploadHTTPPath'])) { ?>
-    <tr>
-        <td><?php echo $basedir . $serendipity['uploadHTTPPath']; ?></td>
-        <td width="200"><?php
-            if (is_writable($basedir . $serendipity['uploadHTTPPath'])) {
-                echo serendipity_upgraderResultDiagnose(S9Y_U_SUCCESS, WRITABLE);
-            } else {
-                echo serendipity_upgraderResultDiagnose(S9Y_U_ERROR, NOT_WRITABLE);
-                $showWritableNote = true;
-            }
-     ?></td>
-    </tr>
-<?php } ?>
-</table>
-</div>
-<?php if ($showWritableNote === true) { ?>
-    <div class="serendipityAdminMsgNote"><img style="width: 22px; height: 22px; border: 0px; padding-right: 4px; vertical-align: middle" src="<?php echo serendipity_getTemplateFile('admin/img/admin_msg_note.png'); ?>" alt="" /><?php echo sprintf(PROBLEM_PERMISSIONS_HOWTO, 'chmod 1777') ?></div>
-<?php }
+        }
 
-    if ($errorCount > 0) { ?>
-    <div align="center">
-        <div class="serendipityAdminMsgError"><img style="width: 22px; height: 22px; border: 0px; padding-right: 4px; vertical-align: middle" src="<?php echo serendipity_getTemplateFile('admin/img/admin_msg_error.png'); ?>" alt="" />
-<?php echo PROBLEM_DIAGNOSTIC ?></div>
-        <h2><a href="serendipity_admin.php"><?php echo RECHECK_INSTALLATION ?></a></h2>
-    </div>
-<?php }
-?>
-</div>
+        if (!$showWritableNote) {
+            $data['upgraderResultDiagnose2'][] = serendipity_upgraderResultDiagnose(S9Y_U_SUCCESS, WRITABLE);
+        }
+    }
 
-<?php
+    $data['upgraderResultDiagnose3'] = array();
+    if ( is_writable($basedir . PATH_SMARTY_COMPILE) ) {
+         $data['upgraderResultDiagnose3'][] = serendipity_upgraderResultDiagnose(S9Y_U_SUCCESS, WRITABLE);
+    } else {
+         $data['upgraderResultDiagnose3'][] = serendipity_upgraderResultDiagnose(S9Y_U_ERROR, NOT_WRITABLE);
+         $showWritableNote = true;
+    }
+
+    $data['upgraderResultDiagnose4'] = array();
+    if (is_dir($basedir . $serendipity['uploadHTTPPath'])) {
+        $data['isdir_uploadpath'] = is_dir($basedir . $serendipity['uploadHTTPPath']);
+        if (is_writable($basedir . $serendipity['uploadHTTPPath'])) {
+            $data['upgraderResultDiagnose4'][] = serendipity_upgraderResultDiagnose(S9Y_U_SUCCESS, WRITABLE);
+        } else {
+            $data['upgraderResultDiagnose4'][] = serendipity_upgraderResultDiagnose(S9Y_U_ERROR, NOT_WRITABLE);
+            $showWritableNote = true;
+        }
+    }
+
+    $data['showWritableNote'] = $showWritableNote;
+
+    $data['errorCount'] = $errorCount;
     if ($errorCount < 1) {
-        if (sizeof($sqlfiles) > 0) { ?>
-    <br />
-    <h3><?php printf(SERENDIPITY_UPGRADER_DATABASE_UPDATES, $serendipity['dbType']) ?>:</h3>
-<?php echo SERENDIPITY_UPGRADER_FOUND_SQL_FILES ?>:<br />
-<?php
-            foreach ($sqlfiles as $sqlfile) {
-                echo '<div style="padding-left: 5px"><strong>'. $sqlfile .'</strong></div>';
-            }
+        if (sizeof($sqlfiles) > 0) {
+            $data['database_update_types'] = sprintf(SERENDIPITY_UPGRADER_DATABASE_UPDATES, $serendipity['dbType']);
+            $data['sqlfiles'] = $sqlfiles;
         }
 ?>
     <br />
@@ -434,3 +488,17 @@ if (($showAbort && $serendipity['GET']['action'] == 'ignore') || $serendipity['G
 <?php }
     }
 }
+
+$data['get']['action'] = $serendipity['GET']['action']; // don't trust {$smarty.get.vars} if not proofed, as we often change GET vars via serendipty['GET'] by runtime
+$data['templatePath']  = $serendipity['templatePath'];
+
+if (!is_object($serendipity['smarty'])) {
+    serendipity_smarty_init();
+}
+
+/* see on top */
+#$serendipity['smarty']->registerPlugin('function', 'serendipity_upgraderResultDiagnose', 'serendipity_smarty_backend_upgraderResultDiagnose');
+
+echo serendipity_smarty_show('admin/upgrader.inc.tpl', $data);
+
+/* vim: set sts=4 ts=4 expandtab : */

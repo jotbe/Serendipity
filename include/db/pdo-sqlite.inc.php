@@ -101,7 +101,7 @@ function serendipity_db_connect() {
     global $serendipity;
 
     $serendipity['dbConn'] = new PDO(
-                                 'sqlite:' . $serendipity['serendipityPath'] . $serendipity['dbName'] . '.db'
+                                 'sqlite:' . (defined('S9Y_DATA_PATH') ? S9Y_DATA_PATH : $serendipity['serendipityPath']) . $serendipity['dbName'] . '.db'
                              );
 
     return $serendipity['dbConn'];
@@ -255,7 +255,7 @@ function &serendipity_db_query($sql, $single = false, $result_type = "both", $re
     $rows = array();
 
     foreach($serendipity['dbSth']->fetchAll($result_type) AS $row) {
-    $row = serendipity_db_sqlite_fetch_array($row, $result_type);
+        $row = serendipity_db_sqlite_fetch_array($row, $result_type);
         if (!empty($assocKey)) {
             // You can fetch a key-associated array via the two function parameters assocKey and assocVal
             if (empty($assocVal)) {
@@ -290,13 +290,14 @@ function &serendipity_db_query($sql, $single = false, $result_type = "both", $re
  */
 function serendipity_db_schema_import($query) {
     static $search  = array('{AUTOINCREMENT}', '{PRIMARY}', '{UNSIGNED}', '{FULLTEXT}', '{BOOLEAN}', '{UTF_8}', '{TEXT}');
-    static $replace = array('INTEGER', 'PRIMARY KEY', '', '', 'BOOLEAN NOT NULL', '', 'LONGTEXT');
+    static $replace = array('INTEGER AUTOINCREMENT', 'PRIMARY KEY', '', '', 'BOOLEAN NOT NULL', '', 'LONGTEXT');
 
     if (stristr($query, '{FULLTEXT_MYSQL}')) {
         return true;
     }
 
     $query = trim(str_replace($search, $replace, $query));
+    $query = str_replace('INTEGER AUTOINCREMENT PRIMARY KEY', 'INTEGER PRIMARY KEY AUTOINCREMENT', $query);
     if ($query[0] == '@') {
         // Errors are expected to happen (like duplicate index creation)
         return serendipity_db_query(substr($query, 1), false, 'both', false, false, false, true);

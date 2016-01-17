@@ -1,4 +1,4 @@
-<?php # $Id$
+<?php
 # Copyright (c) 2003-2005, Jannis Hermanns (on behalf the Serendipity Developer Team)
 # All rights reserved.  See LICENSE file for licensing details
 
@@ -195,68 +195,36 @@ if (is_array($users)) {
             } else {
                 $img = serendipity_getTemplateFile('admin/img/user_editor.png');
             }
-?>
-<div class="serendipity_admin_list_item serendipity_admin_list_item_<?php echo ($i++ % 2) ? 'even' : 'uneven' ?>">
-<table width="100%">
-    <tr>
-<?php /* TODO: Add username to list once tom figures out how to fix uneven rowstyles */ ?>
-        <td><img src="<?php echo $img ?>" alt="" style="border: 0px none ; vertical-align: bottom; display: inline;" /> <?php echo htmlspecialchars($user['realname']); ?></td>
-        <td width="100" align="center"><?php echo $user['userlevel']; ?></td>
-        <td width="300" align="right"> 
-                                       <a target="_blank" href="<?php echo serendipity_authorURL($user); ?>" title="<?php echo PREVIEW . ' ' . htmlspecialchars($user['realname']); ?>" class="serendipityIconLink">
-                                        <img src="<?php echo serendipity_getTemplateFile('admin/img/zoom.png'); ?>" alt="<?php echo PREVIEW; ?>" /><?php echo PREVIEW ?></a>
-                                       <a href="?serendipity[adminModule]=users&amp;serendipity[adminAction]=edit&amp;serendipity[userid]=<?php echo $user['authorid'] ?>#editform" title="<?php echo EDIT . " " . htmlspecialchars($user['realname']); ?>" class="serendipityIconLink"><img src="<?php echo serendipity_getTemplateFile('admin/img/edit.png'); ?>" alt="<?php echo EDIT . " " . htmlspecialchars($user['realname']); ?>" /><?php echo EDIT ?></a>
-                                       <a href="?<?php echo serendipity_setFormToken('url'); ?>&amp;serendipity[adminModule]=users&amp;serendipity[adminAction]=delete&amp;serendipity[userid]=<?php echo $user['authorid'] ?>" title="<?php echo DELETE . " " . htmlspecialchars($user['realname']); ?>" class="serendipityIconLink"><img src="<?php echo serendipity_getTemplateFile('admin/img/delete.png'); ?>" alt="<?php echo DELETE . " " . htmlspecialchars($user['realname']); ?>" /><?php echo DELETE ?></a></td>
-    </tr>
-</table>
-</div>
-<?php
+            $data['users'][$user]['userlevel_name'] = $serendipity['permissionLevels'][$userdata['userlevel']];
         }
     }
-}
-?>
-            </td>
-        </tr>
-<?php if ( !isset($_POST['NEW']) && serendipity_checkPermission('adminUsersCreateNew')) { ?>
-        <tr>
-            <td colspan="3" align="right">
-                <form action="?serendipity[adminModule]=users" method="post">
-                    <input type="submit" name="NEW"   value="<?php echo CREATE_NEW_USER; ?>" class="serendipityPrettyButton input_button" />
-                </form>
-            </td>
-        </tr>
-<?php } ?>
-    </table>
 
-<?php
+    if ( ! (isset($_POST['NEW']) || $serendipity['GET']['adminAction'] == 'new') && serendipity_checkPermission('adminUsersCreateNew')) {
+        $data['new'] = true;
+    }
 }
 
 
-if ( ($serendipity['GET']['adminAction'] == 'edit' && serendipity_checkPermission('adminUsersDelete')) || (isset($_POST['NEW']) && serendipity_checkPermission('adminUsersCreateNew')) ) {
-?>
-<br />
-<br />
-<hr noshade="noshade">
-<form action="?serendipity[adminModule]=users#editform" method="post">
-<?php echo serendipity_setFormToken(); ?>
-    <div>
-    <h3>
-<?php
-if ($serendipity['GET']['adminAction'] == 'edit') {
-    echo '<a id="editform"></a>';
-    $user = serendipity_fetchUsers($serendipity['GET']['userid']);
-    $group_intersect = serendipity_intersectGroup($user[0]['authorid']);
+if ( ($serendipity['GET']['adminAction'] == 'edit' && serendipity_checkPermission('adminUsersDelete')) || ((isset($_POST['NEW']) || $serendipity['GET']['adminAction'] == 'new')  && serendipity_checkPermission('adminUsersCreateNew')) ) {
+    $data['adminAction'] = $serendipity['GET']['adminAction'];
+    $data['show_form'] = true;
+    $data['formToken'] = serendipity_setFormToken();
 
-    if ($user[0]['userlevel'] >= $serendipity['serendipityUserlevel'] && $user[0]['authorid'] != $serendipity['authorid'] && !serendipity_checkPermission('adminUsersMaintainOthers')) {
-        echo '<strong>' . CREATE_NOT_AUTHORIZED . '</strong><br />';
-        echo EDIT;
-        $from = array();
-    } elseif (serendipity_checkPermission('adminUsersMaintainOthers') ||
-            (serendipity_checkPermission('adminUsersMaintainSame') && $group_intersect)) {
-        echo EDIT;
-        $from = &$user[0];
-        unset($from['password']);
-        echo '<input type="hidden" name="serendipity[user]" value="' . (int)$from['authorid'] . '" />';
+    if ($serendipity['GET']['adminAction'] == 'edit') {
+        $user = serendipity_fetchUsers($serendipity['GET']['userid']);
+        $group_intersect = serendipity_intersectGroup($user[0]['authorid']);
+        if ($user[0]['userlevel'] >= $serendipity['serendipityUserlevel'] && $user[0]['authorid'] != $serendipity['authorid'] && !serendipity_checkPermission('adminUsersMaintainOthers')) {
+            $data['no_create_permission'] = true;
+            $from = array();
+        } elseif (serendipity_checkPermission('adminUsersMaintainOthers') ||
+                (serendipity_checkPermission('adminUsersMaintainSame') && $group_intersect)) {
+            $data['create_permission'] = true;
+            $from = &$user[0];
+            unset($from['password']);
+        } else {
+
+            $from = array();
+        }
     } else {
         echo '<strong>' . CREATE_NOT_AUTHORIZED . '</strong><br />';
         echo EDIT;
@@ -279,11 +247,7 @@ if (!empty($serendipity['GET']['userid'])) {
 
 serendipity_printConfigTemplate($config, $from, true, false, true, true);
 
-if ($serendipity['GET']['adminAction'] == 'edit') { ?>
-        <input type="submit" name="SAVE_EDIT"   value="<?php echo SAVE; ?>" class="serendipityPrettyButton input_button" />
-<?php } else { ?>
-        <input type="submit" name="SAVE_NEW" value="<?php echo CREATE_NEW_USER; ?>" class="serendipityPrettyButton input_button" />
-<?php } ?>
+    $data['config'] = serendipity_printConfigTemplate($config, $from, true, false, true, true);
 
     </div>
 </form>
@@ -308,6 +272,8 @@ if ($serendipity['GET']['adminAction'] == 'edit') { ?>
 <?php
     }
 }
+
+echo serendipity_smarty_show('admin/users.inc.tpl', $data);
 
 /* vim: set sts=4 ts=4 expandtab : */
 ?>

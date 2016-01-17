@@ -1,4 +1,5 @@
-<?php # $Id: plugin_api.inc.php 1228 2006-06-01 11:18:53Z garvinhicking $
+<?php
+# $Id: plugin_api.inc.php 1228 2006-06-01 11:18:53Z garvinhicking $
 # Copyright (c) 2003-2005, Jannis Hermanns (on behalf the Serendipity Developer Team)
 # All rights reserved.  See LICENSE file for licensing details
 
@@ -129,7 +130,7 @@ class serendipity_smarty_emulator {
         } elseif (function_exists($funcname)) {
             return call_user_func($funcname, $params, $this);
         } else {
-            return "ERROR: " . htmlspecialchars($funcname) . " NOT FOUND.<br />\n";
+            return "<span class='msg_error'>ERROR: " . serendipity_specialchars($funcname) . " NOT FOUND.</span>";
         }
     }
 
@@ -326,8 +327,7 @@ class serendipity_smarty_emulator_xml extends serendipity_smarty_emulator {
             $this->assign($val, null, $level + 1);
             echo str_repeat("\t", $level) . "</$closekey>\n";
         } else {
-            echo str_repeat("\t", $level) . "<$openkey>" . htmlspecialchars($val) . "</$closekey>\n";
+            echo str_repeat("\t", $level) . "<$openkey>" . serendipity_specialchars($val) . "</$closekey>\n";
         }
     }
 }
-

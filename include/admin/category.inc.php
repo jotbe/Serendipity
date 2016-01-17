@@ -1,4 +1,4 @@
-<?php # $Id$
+<?php
 # Copyright (c) 2003-2005, Jannis Hermanns (on behalf the Serendipity Developer Team)
 # All rights reserved.  See LICENSE file for licensing details
 
@@ -14,9 +14,9 @@ $admin_category = (!serendipity_checkPermission('adminCategoriesMaintainOthers')
 
 /* Add a new category */
 if (isset($_POST['SAVE']) && serendipity_checkFormToken()) {
-    $name     = $serendipity['POST']['cat']['name'];
-    $desc     = $serendipity['POST']['cat']['description'];
-
+    $name = $serendipity['POST']['cat']['name'];
+    $data['post_save'] = true;
+    $desc = $serendipity['POST']['cat']['description'];
     if (is_array($serendipity['POST']['cat']['write_authors']) && in_array(0, $serendipity['POST']['cat']['write_authors'])) {
         $authorid = 0;
     } else {
@@ -26,22 +26,19 @@ if (isset($_POST['SAVE']) && serendipity_checkFormToken()) {
     $icon     = $serendipity['POST']['cat']['icon'];
     $parentid = (isset($serendipity['POST']['cat']['parent_cat']) && is_numeric($serendipity['POST']['cat']['parent_cat'])) ? $serendipity['POST']['cat']['parent_cat'] : 0;
 
-    if ($serendipity['GET']['adminAction'] == 'new') {
-        if ($parentid != 0) {
-            // TODO: This doesn't seem to work as expected, serendipity_rebuildCategoryTree(); is still needed! Only activate this optimization function when it's really working :)
-            // TODO: This works if only one subcategory exists.  Otherwise, the first query will return an array.
-            /*
-            $res = serendipity_db_query("SELECT category_right FROM {$serendipity['dbPrefix']}category WHERE parentid={$parentid}");
-            serendipity_db_query("UPDATE {$serendipity['dbPrefix']}category SET category_left=category_left+2, category_right=category_right+2 WHERE category_right>{$res}");
-            */
+
+    if ($serendipity['GET']['adminAction'] == 'new' || $serendipity['GET']['adminAction'] == 'newSub') {
+        # only continue if category-name doesn't already exists, as user have no means to distinguish between them
+        $r = serendipity_db_query("SELECT category_name FROM {$serendipity['dbPrefix']}category WHERE category_name = '". serendipity_db_escape_string($name)."'");
+        if (is_array($r) && is_array($r[0])) {
+            $data['error_name'] = true;
+            $data['category_name'] = $name;
+        } else {
+            $data['new'] = true;
+            $catid = serendipity_addCategory($name, $desc, $authorid, $icon, $parentid);
+            serendipity_ACLGrant($catid, 'category', 'read', $serendipity['POST']['cat']['read_authors']);
+            serendipity_ACLGrant($catid, 'category', 'write', $serendipity['POST']['cat']['write_authors']);
         }
-
-        $catid = serendipity_addCategory($name, $desc, $authorid, $icon, $parentid);
-        serendipity_ACLGrant($catid, 'category', 'read', $serendipity['POST']['cat']['read_authors']);
-        serendipity_ACLGrant($catid, 'category', 'write', $serendipity['POST']['cat']['write_authors']);
-
-        echo '<div class="serendipityAdminMsgSuccess"><img style="height: 22px; width: 22px; border: 0px; padding-right: 4px; vertical-align: middle" src="' . serendipity_getTemplateFile('admin/img/admin_msg_success.png') . '" alt="" />' . CATEGORY_SAVED .'</div>';
-
     } elseif ($serendipity['GET']['adminAction'] == 'edit') {
             if (!serendipity_checkPermission('adminCategoriesMaintainOthers') && !serendipity_ACLCheck($serendipity['authorid'], $serendipity['GET']['cid'], 'category', 'write')) {
                 echo '<div class="serendipityAdminMsgError"><img style="width: 22px; height: 22px; border: 0px; padding-right: 4px; vertical-align: middle" src="' . serendipity_getTemplateFile('admin/img/admin_msg_error.png') . '" alt="" />'. PERM_DENIED .'</div>';
@@ -53,7 +50,7 @@ if (isset($_POST['SAVE']) && serendipity_checkFormToken()) {
                 if (is_array($r)) {
                     $r = serendipity_db_query("SELECT category_name FROM {$serendipity['dbPrefix']}category
                                                         WHERE categoryid = ". (int)$parentid);
-                    echo sprintf(ALREADY_SUBCATEGORY, htmlspecialchars($r[0]['category_name']), htmlspecialchars($name));
+                   $data['subcat'] = sprintf(ALREADY_SUBCATEGORY, serendipity_specialchars($r[0]['category_name']), serendipity_specialchars($name));
                 } else {
                     serendipity_updateCategory($serendipity['GET']['cid'], $name, $desc, $authorid, $icon, $parentid, $serendipity['POST']['cat']['sort_order'], $serendipity['POST']['cat']['hide_sub'], $admin_category);
                     serendipity_ACLGrant($serendipity['GET']['cid'], 'category', 'read', $serendipity['POST']['cat']['read_authors']);
@@ -62,6 +59,7 @@ if (isset($_POST['SAVE']) && serendipity_checkFormToken()) {
                 }
             }
     }
+
 
     serendipity_rebuildCategoryTree();
     $serendipity['GET']['adminAction'] = 'view';
@@ -73,7 +71,7 @@ if ($serendipity['GET']['adminAction'] == 'doDelete' && serendipity_checkFormTok
         $remaining_cat = (int)$serendipity['POST']['cat']['remaining_catid'];
         $category_ranges = serendipity_fetchCategoryRange((int)$serendipity['GET']['cid']);
         $category_range  = implode(' AND ', $category_ranges);
-        if ($serendipity['dbType'] == 'postgres' || $serendipity['dbType'] == 'sqlite' || $serendipity['dbType'] == 'sqlite3' || $serendipity['dbType'] == 'pdo-sqlite') {
+        if ($serendipity['dbType'] == 'postgres' || $serendipity['dbType'] == 'sqlite' || $serendipity['dbType'] == 'sqlite3' || $serendipity['dbType'] == 'sqlite3oo' || $serendipity['dbType'] == 'pdo-sqlite') {
             $query = "UPDATE {$serendipity['dbPrefix']}entrycat
                         SET categoryid={$remaining_cat} WHERE entryid IN
                         (
@@ -113,25 +111,23 @@ if ($serendipity['GET']['adminAction'] == 'doDelete' && serendipity_checkFormTok
 }
 ?>
 
-<?php
-    if ( $serendipity['GET']['adminAction'] == 'delete' ) {
-        $this_cat = serendipity_fetchCategoryInfo($serendipity['GET']['cid']);
-        if (   (serendipity_checkPermission('adminCategoriesDelete') && serendipity_checkPermission('adminCategoriesMaintainOthers'))
-            || (serendipity_checkPermission('adminCategoriesDelete') && ($serendipity['authorid'] == $this_cat['authorid'] || $this_cat['authorid'] == '0'))
-            || (serendipity_checkPermission('adminCategoriesDelete') && serendipity_ACLCheck($serendipity['authorid'], $serendipity['GET']['cid'], 'category', 'write'))) {
-?>
-        <form method="POST" name="serendipityCategory" action="?serendipity[adminModule]=category&amp;serendipity[adminAction]=doDelete&amp;serendipity[cid]=<?php echo (int)$serendipity['GET']['cid'] ?>">
-        <?php echo serendipity_setFormToken(); ?>
-            <h3><?php echo htmlspecialchars($this_cat['category_name']); ?></h3>
-            <?php echo CATEGORY_REMAINING ?>:
-            <select name="serendipity[cat][remaining_catid]">
-                <option value="0">- <?php echo NO_CATEGORY ?> -</option>
-<?php
-    $cats = serendipity_fetchCategories('all');
-    /* TODO, show dropdown as nested categories */
-    foreach ($cats as $cat_data) {
-        if ($cat_data['categoryid'] != $serendipity['GET']['cid'] && (serendipity_checkPermission('adminCategoriesMaintainOthers') || $cat_data['authorid'] == '0' || $cat_data['authorid'] == $serendipity['authorid'])) {
-            echo '<option value="' . $cat_data['categoryid'] . '">' . htmlspecialchars($cat_data['category_name']) . '</option>' . "\n";
+if ( $serendipity['GET']['adminAction'] == 'delete' ) {
+    $data['delete'] = true;
+    $this_cat = serendipity_fetchCategoryInfo($serendipity['GET']['cid']);
+    if (   (serendipity_checkPermission('adminCategoriesDelete') && serendipity_checkPermission('adminCategoriesMaintainOthers'))
+        || (serendipity_checkPermission('adminCategoriesDelete') && ($serendipity['authorid'] == $this_cat['authorid'] || $this_cat['authorid'] == '0'))
+        || (serendipity_checkPermission('adminCategoriesDelete') && serendipity_ACLCheck($serendipity['authorid'], $serendipity['GET']['cid'], 'category', 'write'))) {
+        $data['deletePermission'] = true;
+        $data['cid'] = (int)$serendipity['GET']['cid'];
+        $data['formToken'] = serendipity_setFormToken();
+        $data['categoryName'] = $this_cat['category_name'];
+        $cats = serendipity_fetchCategories('all');
+        $data['cats'] = array();
+        /* TODO, show dropdown as nested categories */
+        foreach ($cats as $cat_data) {
+            if ($cat_data['categoryid'] != $serendipity['GET']['cid'] && (serendipity_checkPermission('adminCategoriesMaintainOthers') || $cat_data['authorid'] == '0' || $cat_data['authorid'] == $serendipity['authorid'])) {
+                $data['cats'][] = $cat_data;
+            }
         }
     }
 ?>
@@ -145,53 +141,59 @@ if ($serendipity['GET']['adminAction'] == 'doDelete' && serendipity_checkFormTok
 
 
 
-<?php if ( $serendipity['GET']['adminAction'] == 'edit' || $serendipity['GET']['adminAction'] == 'new' ) {
-        if ( $serendipity['GET']['adminAction'] == 'edit' ) {
-            $cid = (int)$serendipity['GET']['cid'];
-            $this_cat = serendipity_fetchCategoryInfo($cid);
-            echo '<strong>'. sprintf(EDIT_THIS_CAT, htmlspecialchars($this_cat['category_name'])) .'</strong>';
-            $save = SAVE;
-            $read_groups  = serendipity_ACLGet($cid, 'category', 'read');
-            $write_groups = serendipity_ACLGet($cid, 'category', 'write');
-        } else {
-            $cid = false;
-            $this_cat = array();
-            echo '<strong>'. CREATE_NEW_CAT .'</strong>';
-            $save = CREATE;
-            $read_groups  = array(0 => 0);
-            $write_groups = array(0 => 0);
-        }
+if ( $serendipity['GET']['adminAction'] == 'edit' || $serendipity['GET']['adminAction'] == 'new' || $serendipity['GET']['adminAction'] == 'newSub') {
+    if ( $serendipity['GET']['adminAction'] == 'edit' ) {
+        $data['edit'] = true;
+        $cid = (int)$serendipity['GET']['cid'];
+        $this_cat = serendipity_fetchCategoryInfo($cid);
+        $data['category_name'] = $this_cat['category_name'];
+        $save = SAVE;
+        $read_groups  = serendipity_ACLGet($cid, 'category', 'read');
+        $write_groups = serendipity_ACLGet($cid, 'category', 'write');
+    } else {
+        $data['new'] = true;
+        $cid = false;
+        $this_cat = array();
+        echo '<h2>'. CREATE_NEW_CAT .'</h2>';
+        $save = CREATE;
+        $read_groups  = array(0 => 0);
+        $write_groups = array(0 => 0);
+    }
 
-        $groups = serendipity_getAllGroups();
-?>
-<form method="POST" name="serendipityCategory">
-<?php echo serendipity_setFormToken(); ?>
-<table cellpadding="5" width="100%">
-    <tr>
-        <td><?php echo NAME; ?></td>
-        <td><input class="input_textbox" type="text" name="serendipity[cat][name]" value="<?php echo isset($this_cat['category_name']) ? htmlspecialchars($this_cat['category_name']) : ''; ?>" /></td>
-        <td rowspan="5" align="center" valign="middle" width="200" style="border: 1px solid #ccc"><img src="<?php echo isset($this_cat['category_icon']) ? htmlspecialchars($this_cat['category_icon']) : '' ?>" id="imagepreview" <?php echo empty($this_cat['category_icon']) ? 'style="display: none"' : '' ?> /></td>
-    </tr>
+    if ($serendipity['GET']['adminAction'] == 'newSub') {
+        $data['new'] = true;
+        $data['newSub'] = true;
+        $this_cat['parentid'] = (int)$serendipity['GET']['cid'];
+    }
+    $data['cid'] = $cid;
+    $data['this_cat'] = $this_cat;
+    $data['save'] = $save;
 
-    <tr>
-        <td><?php echo DESCRIPTION; ?></td>
-        <td><input class="input_textbox" type="text" name="serendipity[cat][description]" value="<?php echo isset($this_cat['category_description']) ? htmlspecialchars($this_cat['category_description']) : ''; ?>" /></td>
-    </tr>
+    $groups = serendipity_getAllGroups();
+    $data['groups'] = $groups;
+    $data['read_groups'] = $read_groups;
+    $data['write_groups'] = $write_groups;
 
-    <tr>
-        <td><?php echo IMAGE; ?></td>
-        <td>
-            <script type="text/javascript" language="JavaScript" src="serendipity_editor.js"></script>
-            <input class="input_textbox" type="text" id="img_icon" name="serendipity[cat][icon]" value="<?php echo isset($this_cat['category_icon']) ? htmlspecialchars($this_cat['category_icon']) : ''; ?>" onchange="document.getElementById('imagepreview').src = this.value; document.getElementById('imagepreview').style.display = '';" />
-            <script type="text/javascript" language="JavaScript">
-  var img_icon     = document.getElementById('img_icon');
-  var imgBtn       = document.createElement('div');
-  imgBtn.id        = "category_ml_popup";
-  imgBtn.innerHTML = '<input type="button" name="insImage" value="<?php echo IMAGE ; ?>" onclick="window.open(\'serendipity_admin_image_selector.php?serendipity[htmltarget]=img_icon&amp;serendipity[filename_only]=true\', \'ImageSel\', \'width=800,height=600,toolbar=no,scrollbars=1,scrollbars,resize=1,resizable=1\');" class="serendipityPrettyButton input_button" />';
-  img_icon.parentNode.insertBefore(imgBtn, img_icon.nextSibling);
-</script>
-        </td>
-    </tr>
+    $data['formToken'] = serendipity_setFormToken();
+    $data['cat'] = $this_cat;
+    if (!is_array($this_cat) || (isset($this_cat['authorid']) && $this_cat['authorid'] == '0') || isset($read_groups[0])) {
+        $data['selectAllReadAuthors'] = true;
+    }
+    if (!is_array($this_cat) || (isset($this_cat['authorid']) && $this_cat['authorid'] == '0') || isset($write_groups[0])) {
+        $data['selectAllWriteAuthors'] = true;
+    }
+
+    $categories = serendipity_fetchCategories('all');
+    $categories = serendipity_walkRecursive($categories, 'categoryid', 'parentid', VIEWMODE_THREADED);
+    $data['categories'] = $categories;
+    // hook content as var to category.inc.tpl, to place inside the form
+    ob_start();
+    serendipity_plugin_api::hook_event('backend_category_showForm', $cid, $this_cat);
+    $data['category_showForm'] = ob_get_contents();
+    ob_end_clean();
+}
+
+
 
     <tr>
         <td><label for="read_authors"><?php echo PERM_READ; ?></label></td>
@@ -271,30 +273,8 @@ if ( $serendipity['GET']['adminAction'] == 'view' ) {
     } else {
         echo '<div align="center">- '. NO_CATEGORIES .' -</div>';
     }
-?>
-<br /><br />
-<table cellspacing="0" cellpadding="4" width="100%" border=0>
-<?php
-            if ( is_array($cats) ) {
-                $categories = serendipity_walkRecursive($cats, 'categoryid', 'parentid', VIEWMODE_THREADED);
-                foreach ( $categories as $category ) {
-?>
-            <tr>
-                <td width="16"><a title="<?php echo EDIT ?>" href="?serendipity[adminModule]=category&amp;serendipity[adminAction]=edit&amp;serendipity[cid]=<?php echo $category['categoryid'] ?>"><img src="<?php echo serendipity_getTemplateFile('admin/img/edit.png') ?>" border="0" alt="<?php echo EDIT ?>" /></a></td>
-                <td width="16"><a title="<?php echo DELETE ?>" href="?serendipity[adminModule]=category&amp;serendipity[adminAction]=delete&amp;serendipity[cid]=<?php echo $category['categoryid'] ?>"><img src="<?php echo serendipity_getTemplateFile('admin/img/delete.png') ?>" border="0" alt="<?php echo DELETE ?>" /></a></td>
-                <td width="16"><?php if ( !empty($category['category_icon']) ) {?><img src="<?php echo serendipity_getTemplateFile('admin/img/thumbnail.png') ?>" alt="" /><?php } else echo '&nbsp;' ?></td>
-                <td width="300" style="padding-left: <?php echo ($category['depth']*15)+20 ?>px"><img src="<?php echo serendipity_getTemplateFile('admin/img/folder.png') ?>" style="vertical-align: bottom;"> <?php echo htmlspecialchars($category['category_name']) ?></td>
-                <td><?php echo htmlspecialchars($category['category_description']) ?></td>
-                <td align="right"><?php echo ($category['authorid'] == '0' ? ALL_AUTHORS : htmlspecialchars($category['realname'])); ?></td>
-            </tr>
-<?php           }
-            } ?>
-            <tr>
-                <td colspan="6" align="right">
-                    <a href="?serendipity[adminModule]=category&serendipity[adminAction]=new" class="serendipityPrettyButton input_button"><?php echo CREATE_NEW_CAT ?></a>
-                </td>
-            </tr>
-</table>
-<?php }
+}
+
+echo serendipity_smarty_show('admin/category.inc.tpl', $data);
 
 /* vim: set sts=4 ts=4 expandtab : */

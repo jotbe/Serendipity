@@ -1,15 +1,10 @@
-<?php # $Id$
+<?php
 # Copyright (c) 2003-2005, Jannis Hermanns (on behalf the Serendipity Developer Team)
 # All rights reserved.  See LICENSE file for licensing details
 
 if (IN_serendipity !== true) {
     die ("Don't hack!");
 }
-
-if (defined('S9Y_FRAMEWORK_INSTALLER')) {
-    return;
-}
-@define('S9Y_FRAMEWORK_INSTALLER', true);
 
 /**
  * Convert a PHP Ini setting to a boolean flag
@@ -89,7 +84,7 @@ function serendipity_updateLocalConfig($dbName, $dbPrefix, $dbHost, $dbUser, $db
                    . "\t  Serendipity configuration file\n";
     $file_mark     = "\n\t// End of Serendipity configuration file"
                    . "\n\t// You can place your own special variables after here:\n";
-    $file_end      = "\n?>\n";
+    $file_end      = "\n?>";
     $file_personal = '';
 
     preg_match('@' . preg_quote($file_start) . '.*' . preg_quote($file_mark) . '(.+)' . preg_quote($file_end) . '@imsU', $oldconfig, $match);
@@ -179,9 +174,6 @@ function serendipity_query_default($optname, $default, $usertemplate = false, $t
             return $default;
 
         case 'dbType' :
-            if (extension_loaded('mysqli')) {
-                $type = 'mysqli';
-            }
             if (extension_loaded('PDO') &&
                 in_array('pgsql', PDO::getAvailableDrivers())) {
                 $type = 'pdo-postgres';
@@ -192,6 +184,9 @@ function serendipity_query_default($optname, $default, $usertemplate = false, $t
             if (extension_loaded('mysql')) {
                 $type = 'mysql';
             }
+            if (extension_loaded('mysqli')) {
+                $type = 'mysqli';
+            }
             return $type;
 
         case 'serendipityPath':
@@ -201,6 +196,7 @@ function serendipity_query_default($optname, $default, $usertemplate = false, $t
                 $test_path1 = $_SERVER['DOCUMENT_ROOT'] . rtrim(dirname($_SERVER['PHP_SELF']), '/') . '/';
             }
             $test_path2 = serendipity_getRealDir(__FILE__);
+
             if (!empty($_SERVER['ORIG_PATH_TRANSLATED']) && file_exists(dirname($_SERVER['ORIG_PATH_TRANSLATED']) . '/serendipity_admin.php')) {
                 return realpath(rtrim(dirname($_SERVER['ORIG_PATH_TRANSLATED']), '/')) . '/';
             }
@@ -237,6 +233,13 @@ function serendipity_query_default($optname, $default, $usertemplate = false, $t
 
             if (isset($_SERVER['PATH'])) {
                 $path = array_merge($path, explode(PATH_SEPARATOR, $_SERVER['PATH']));
+                // remove unwanted empty or system32 path parts, so that wrong system32/convert.exe is prevented.
+                foreach ($path as $pk => $pv) {
+                    if (stripos($pv, 'system32') !== false || empty($pv)) {
+                        unset($path[$pk]);
+                    }
+                }
+                $path = array_values($path); // 'reindex' array
             }
 
             /* add some other possible locations to the path while we are at it,
@@ -389,7 +392,8 @@ function serendipity_replaceEmbeddedConfigVars ($s) {
  */
 
 function serendipity_guessInput($type, $name, $value='', $default='') {
-    global $serendipity;
+    $data = array();
+    $curOptions = array();
 
     switch ($type) {
         case 'bool':
@@ -397,106 +401,42 @@ function serendipity_guessInput($type, $name, $value='', $default='') {
             if ($value === null) {
                 $value = $default;
             }
-
-            echo '<input class="input_radio" id="radio_cfg_' . $name . '_yes" type="radio" name="' . $name . '" value="true" ';
-            echo (($value == true) ? 'checked="checked"' : ''). ' /><label for="radio_cfg_' . $name . '_yes"> ' . YES . '</label>&nbsp;';
-            echo '<input class="input_radio" id="radio_cfg_' . $name . '_no" type="radio" name="' . $name . '" value="false" ';
-            echo (($value == true) ? '' : 'checked="checked"'). ' /><label for="radio_cfg_' . $name . '_no"> ' . NO . '</label>';
-            break;
-
-        case 'fullprotected':
-            echo '<input autocomplete="off" class="input_textbox" type="password" size="30" name="' . $name . '" value="' . htmlspecialchars($value) . '" />';
-            break;
-
-        case 'protected':
-            echo '<input class="input_textbox" type="password" size="30" name="' . $name . '" value="' . htmlspecialchars($value) . '" />';
             break;
 
         case 'multilist':
-            echo '<select name="'. $name .'[]" multiple="multiple" size="5">';
-
-            foreach ((array)$default as $k => $v) {
+            $default = (array)$default;
+            $value = (array)$value;
+            foreach ($default as $k => $v) {
                 $selected = false;
-                foreach((array)$value AS $vk => $vv) {
+                foreach($value AS $vk => $vv) {
                     if ($vv['confkey'] == $v['confkey']) {
                         $selected = true;
                     }
                 }
-
-                printf('<option value="%s"%s>%s</option>'. "\n",
-                      $v['confkey'],
-                      ($selected ? ' selected="selected"' : ''),
-                      $v['confvalue']);
+                $curOptions[$name][$k]['selected'] = $selected;
             }
-            echo '</select>';
             break;
 
         case 'list':
-            echo '<select name="'. $name .'">';
             $cval = (string)$value;
-            foreach ((array)$default as $k => $v) {
+            $default = (array)$default;
+            foreach ($default as $k => $v) {
                 $selected = ((string)$k == (string)$value);
                 if (empty($cval) && ((string)$k === 'false' || (string)$k === null)) {
                     $selected = true;
                 }
-
-                printf('<option value="%s"%s>%s</option>'. "\n",
-                      $k,
-                      ($selected ? ' selected="selected"' : ''),
-                      $v);
+                $curOptions[$name][$k]['selected'] = $selected;
             }
-            echo '</select>';
-            break;
-
-        case 'file':
-            echo '<input class="input_file" type="file" size="30" name="' . $name . '" />';
-            break;
-
-        case 'textarea':
-            echo '<textarea rows="5" cols="40" name="' . $name . '">' . htmlspecialchars($value) . '</textarea>';
-            break;
-
-        default:
-            echo '<input class="input_textbox" type="text" size="30" name="' . $name . '" value="' . htmlspecialchars($value) . '" />';
             break;
     }
-}
 
-function serendipity_printConfigJS($folded = true) {
-?>
-<script type="text/javascript" language="JavaScript">
-function showConfig(id) {
-    if (document.getElementById) {
-        el = document.getElementById(id);
-        if (el.style.display == 'none') {
-            document.getElementById('option' + id).src = '<?php echo serendipity_getTemplateFile('img/minus.png') ?>';
-            el.style.display = '';
-        } else {
-            document.getElementById('option' + id).src = '<?php echo serendipity_getTemplateFile('img/plus.png') ?>';
-            el.style.display = 'none';
-        }
-    }
-}
+    $data['type'] = $type;
+    $data['name'] = $name;
+    $data['value'] = $value;
+    $data['default'] = $default;
+    $data['selected'] = $curOptions;
 
-var state='<?php echo ($folded === true ? '' : 'none'); ?>';
-function showConfigAll(count) {
-    if (document.getElementById) {
-        for (i = 1; i <= count; i++) {
-            document.getElementById('el' + i).style.display = state;
-            document.getElementById('optionel' + i).src = (state == '' ? '<?php echo serendipity_getTemplateFile('img/minus.png') ?>' : '<?php echo serendipity_getTemplateFile('img/plus.png') ?>');
-        }
-
-        if (state == '') {
-            document.getElementById('optionall').src = '<?php echo serendipity_getTemplateFile('img/minus.png') ?>';
-            state = 'none';
-        } else {
-            document.getElementById('optionall').src = '<?php echo serendipity_getTemplateFile('img/plus.png') ?>';
-            state = '';
-        }
-    }
-}
-</script>
-<?php
+    return serendipity_smarty_show('admin/guess_input.tpl', $data);
 }
 
 /**
@@ -513,55 +453,14 @@ function showConfigAll(count) {
  */
 function serendipity_printConfigTemplate($config, $from = false, $noForm = false, $folded = true, $allowToggle = true, $showDangerous = false) {
     global $serendipity;
+    $data = array();
+    $data['noForm'] = $noForm;
+    $data['formToken'] = serendipity_setFormToken();
 
-    if ($allowToggle) {
-        serendipity_printConfigJS($folded);
-    }
+    $data['allowToggle'] = $allowToggle;
 
-    if (!$noForm) {
-?>
-<form action="?" method="POST">
-    <div>
-        <input type="hidden" name="serendipity[adminModule]" value="installer" />
-        <input type="hidden" name="installAction" value="check" />
-        <?php echo serendipity_setFormToken(); ?>
-        <br />
-<?php   }
-    if (sizeof($config) > 1 && $allowToggle) { ?>
-        <div align="right">
-            <a style="border:0; text-decoration: none" href="#" onClick="showConfigAll(<?php echo sizeof($config); ?>)" title="<?php echo TOGGLE_ALL; ?>"><img src="<?php echo serendipity_getTemplateFile('img/'. ($folded === true ? 'plus' : 'minus') .'.png') ?>" id="optionall" alt="+/-" border="0" />&nbsp;<?php echo TOGGLE_ALL; ?></a></a><br />
-        </div>
-<?php
-    }
-    $el_count = 0;
-    foreach ($config as $category) {
-        $el_count++;
-?>
-        <table width="100%" cellspacing="2">
-<?php
-        if (sizeof($config) > 1) {
-?>
-            <tr>
-                <th align="left" colspan="2" style="padding-left: 15px;">
-<?php if ($allowToggle) { ?>
-                    <a style="border:0; text-decoration: none;" href="#" onClick="showConfig('el<?php echo $el_count; ?>'); return false" title="<?php echo TOGGLE_OPTION; ?>"><img src="<?php echo serendipity_getTemplateFile('img/'. ($folded === true ? 'plus' : 'minus') .'.png') ?>" id="optionel<?php echo $el_count; ?>" alt="+/-" border="0" />&nbsp;<?php echo $category['title']; ?></a>
-<?php } else { ?>
-                    <?php echo $category['title']; ?>
-<?php } ?>
-                </th>
-            </tr>
-<?php   } ?>
-            <tr>
-                <td>
-                    <table width="100%" cellspacing="0" cellpadding="3" id="el<?php echo $el_count; ?>">
-                        <tr>
-                            <td style="padding-left: 20px;" colspan="2">
-                                <?php echo $category['description'] ?>
-                            </td>
-                        </tr>
-
-<?php
-        foreach ($category['items'] as $item) {
+    foreach ($config as &$category) {
+        foreach ($category['items'] as &$item) {
 
             $value = $from[$item['var']];
 
@@ -595,45 +494,18 @@ function serendipity_printConfigTemplate($config, $from = false, $noForm = false
                 $item['default'] = serendipity_probeInstallation($item['var']);
             }
 
+            if (in_array('ignore', $item['flags'])) {
+                $item['ignore'] = true;
+            }
+
             if (in_array('ifEmpty', $item['flags']) && empty($value)) {
                 $value = serendipity_query_default($item['var'], $item['default']);
             }
-?>
-                        <tr>
-                            <td style="border-bottom: 1px #000000 solid" align="left" valign="top" width="75%">
-                                <strong><?php echo $item['title']; ?></strong>
-                                <br />
-                                <span style="color: #5E7A94; font-size: 8pt;"><?php echo $item['description']; ?></span>
-                            </td>
-                            <td style="border-bottom: 1px #000000 solid; font-size: 8pt" align="left" valign="middle" width="25%">
-                                <span style="white-space: nowrap"><?php serendipity_guessInput($item['type'], $item['var'], $value, $item['default']); ?></span>
-                            </td>
-                        </tr>
-<?php
+            $item['guessedInput'] = serendipity_guessInput($item['type'], $item['var'], $value, $item['default']);
         }
-?>
-                    </table><br /><br />
-                </td>
-            </tr>
-        </table>
-<?php
     }
-
-    if ($folded && $allowToggle) {
-        echo '<script type="text/javascript" language="JavaScript">';
-        for ($i = 1; $i <= $el_count; $i++) {
-            echo 'document.getElementById("el' . $i . '").style.display = "none";' . "\n";
-        }
-        echo '</script>';
-    }
-
-    if (!$noForm) {
-?>
-        <input type="submit" value="<?php echo CHECK_N_SAVE; ?>" class="serendipityPrettyButton input_button" />
-    </div>
-</form>
-<?php
-    }
+    $data['config'] = $config;
+    return serendipity_smarty_show('admin/config_template.tpl', $data);
 }
 
 /**
@@ -715,35 +587,33 @@ function serendipity_checkInstallation() {
 
     // Check dirs
     if (!is_dir($_POST['serendipityPath'])) {
-        $errs[] = sprintf(DIRECTORY_NON_EXISTANT, htmlspecialchars($_POST['serendipityPath']));
+        $errs[] = sprintf(DIRECTORY_NON_EXISTANT, serendipity_specialchars($_POST['serendipityPath']));
     }
-    /* This test has already been passed on the diagnosis page.  Besides
-       it's a partially bogus test.
     elseif (!is_writable($_POST['serendipityPath']) ) {
-        $errs[] = sprintf(DIRECTORY_WRITE_ERROR, htmlspecialchars($_POST['serendipityPath']));
-    }*/
+        $errs[] = sprintf(DIRECTORY_WRITE_ERROR, serendipity_specialchars($_POST['serendipityPath']));
+    }
     elseif (!is_dir($_POST['serendipityPath'] . $_POST['uploadPath'] ) && @mkdir($_POST['serendipityPath'] . $_POST['uploadPath'], $umask) !== true) {
-        $errs[] = sprintf(DIRECTORY_CREATE_ERROR, htmlspecialchars($_POST['serendipityPath']) . htmlspecialchars($_POST['uploadPath']));
+        $errs[] = sprintf(DIRECTORY_CREATE_ERROR, serendipity_specialchars($_POST['serendipityPath']) . serendipity_specialchars($_POST['uploadPath']));
     }
     elseif (!is_writable($_POST['serendipityPath'] . $_POST['uploadPath'])) {
-        $errs[] = sprintf(DIRECTORY_WRITE_ERROR, htmlspecialchars($_POST['serendipityPath']) . htmlspecialchars($_POST['uploadPath']));
-        $errs[] = sprintf(DIRECTORY_RUN_CMD    , 'chmod go+rws', htmlspecialchars($_POST['serendipityPath']) . htmlspecialchars($_POST['uploadPath']));
+        $errs[] = sprintf(DIRECTORY_WRITE_ERROR, serendipity_specialchars($_POST['serendipityPath']) . serendipity_specialchars($_POST['uploadPath']));
+        $errs[] = sprintf(DIRECTORY_RUN_CMD    , 'chmod go+rws', serendipity_specialchars($_POST['serendipityPath']) . serendipity_specialchars($_POST['uploadPath']));
     }
 
     // Attempt to create the template compile directory, it might already be there, but we just want to be sure
     if (!is_dir($_POST['serendipityPath'] . PATH_SMARTY_COMPILE) && @mkdir($_POST['serendipityPath'] . PATH_SMARTY_COMPILE, $umask) !== true) {
-        $errs[] = sprintf(DIRECTORY_CREATE_ERROR, htmlspecialchars($_POST['serendipityPath']) . PATH_SMARTY_COMPILE);
-        $errs[] = sprintf(DIRECTORY_RUN_CMD     , 'mkdir'      , htmlspecialchars($_POST['serendipityPath']) . PATH_SMARTY_COMPILE);
-        $errs[] = sprintf(DIRECTORY_RUN_CMD     , 'chmod go+rwx', htmlspecialchars($_POST['serendipityPath']) . PATH_SMARTY_COMPILE);
+        $errs[] = sprintf(DIRECTORY_CREATE_ERROR, serendipity_specialchars($_POST['serendipityPath']) . PATH_SMARTY_COMPILE);
+        $errs[] = sprintf(DIRECTORY_RUN_CMD     , 'mkdir'      , serendipity_specialchars($_POST['serendipityPath']) . PATH_SMARTY_COMPILE);
+        $errs[] = sprintf(DIRECTORY_RUN_CMD     , 'chmod go+rwx', serendipity_specialchars($_POST['serendipityPath']) . PATH_SMARTY_COMPILE);
     } elseif (is_dir($_POST['serendipityPath'] . PATH_SMARTY_COMPILE) && !is_writeable($_POST['serendipityPath'] . PATH_SMARTY_COMPILE) && @chmod($_POST['serendipityPath'] . PATH_SMARTY_COMPILE, $umask) !== true) {
-        $errs[] = sprintf(DIRECTORY_RUN_CMD     , 'chmod go+rwx', htmlspecialchars($_POST['serendipityPath']) . PATH_SMARTY_COMPILE);
+        $errs[] = sprintf(DIRECTORY_RUN_CMD     , 'chmod go+rwx', serendipity_specialchars($_POST['serendipityPath']) . PATH_SMARTY_COMPILE);
     }
 
     // Attempt to create the archives directory
     if (!is_dir($_POST['serendipityPath'] . PATH_ARCHIVES) && @mkdir($_POST['serendipityPath'] . PATH_ARCHIVES, $umask) !== true) {
-        $errs[] = sprintf(DIRECTORY_CREATE_ERROR, htmlspecialchars($_POST['serendipityPath']) . PATH_ARCHIVES);
-        $errs[] = sprintf(DIRECTORY_RUN_CMD     , 'mkdir'      , htmlspecialchars($_POST['serendipityPath']) . PATH_ARCHIVES);
-        $errs[] = sprintf(DIRECTORY_RUN_CMD     , 'chmod go+rwx', htmlspecialchars($_POST['serendipityPath']) . PATH_ARCHIVES);
+        $errs[] = sprintf(DIRECTORY_CREATE_ERROR, serendipity_specialchars($_POST['serendipityPath']) . PATH_ARCHIVES);
+        $errs[] = sprintf(DIRECTORY_RUN_CMD     , 'mkdir'      , serendipity_specialchars($_POST['serendipityPath']) . PATH_ARCHIVES);
+        $errs[] = sprintf(DIRECTORY_RUN_CMD     , 'chmod go+rwx', serendipity_specialchars($_POST['serendipityPath']) . PATH_ARCHIVES);
     }
 
     // Check imagick
@@ -751,7 +621,7 @@ function serendipity_checkInstallation() {
         $errs[] = sprintf(CANT_EXECUTE_BINARY, 'convert imagemagick');
     }
 
-    if ($_POST['dbType'] == 'sqlite' || $_POST['dbType'] == 'sqlite3' || $_POST['dbType'] == 'pdo-sqlite') {
+    if ($_POST['dbType'] == 'sqlite' || $_POST['dbType'] == 'sqlite3' || $_POST['dbType'] == 'pdo-sqlite' || $_POST['dbType'] == 'sqlite3oo') {
         // We don't want that our SQLite db file can be guessed from other applications on a server
         // and have access to our's. So we randomize the SQLite dbname.
         $_POST['sqlitedbName'] = $_POST['dbName'] . '_' . md5(time());
@@ -759,14 +629,20 @@ function serendipity_checkInstallation() {
 
     if (empty($_POST['dbPrefix']) && empty($serendipity['dbPrefix'])) {
         $errs[] = sprintf(EMPTY_SETTING, INSTALL_DBPREFIX);
+    } elseif (!preg_match('@^[a-z0-9_]+$@i', $_POST['dbPrefix'])) {
+        $errs[] = INSTALL_DBPREFIX_INVALID;
+    }
+
+    if (empty($_POST['pass']) || $_POST['pass'] != $_POST['pass2']) {
+        $errs[] = INSTALL_PASSWORD_INVALID;
     }
 
     $serendipity['dbType'] = $_POST['dbType'];
     // Probe database
     // (do it after the dir stuff, as we need to be able to create the sqlite database)
-    @include_once($_POST['serendipityPath'] . 'include/db/db.inc.php');
+    include_once(S9Y_INCLUDE_PATH . "include/db/{$serendipity['dbType']}.inc.php");
     // For shared installations, probe the file on include path
-    include_once(S9Y_INCLUDE_PATH . 'include/db/db.inc.php');
+    //include_once(S9Y_INCLUDE_PATH . 'include/db/db.inc.php');
 
     if (S9Y_DB_INCLUDED) {
         serendipity_db_probe($_POST, $errs);
@@ -897,6 +773,7 @@ function serendipity_installFiles($serendipity_core = '') {
                    '{PAT_SEARCH}', '{PATH_SEARCH}',
                    '{PAT_COMMENTS}', '{PATH_COMMENTS}',
                    '{PAT_CSS}',
+                   '{PAT_JS}',
                    '{PAT_PERMALINK}',
                    '{PAT_PERMALINK_AUTHORS}',
                    '{PAT_PERMALINK_FEEDCATEGORIES}',
@@ -919,6 +796,7 @@ function serendipity_installFiles($serendipity_core = '') {
                    trim($PAT['SEARCH'], '@/i'),      $serendipity['permalinkSearchPath'],
                    trim($PAT['COMMENTS'], '@/i'),    $serendipity['permalinkCommentsPath'],
                    trim(PAT_CSS, '@/i'),
+                   trim(PAT_JS, '@/i'),
                    trim($PAT['PERMALINK'], '@/i'),
                    trim($PAT['PERMALINK_AUTHORS'], '@/i'),
                    trim($PAT['PERMALINK_FEEDCATEGORIES'], '@/i'),
@@ -932,7 +810,7 @@ function serendipity_installFiles($serendipity_core = '') {
     $fp = @fopen($serendipity_core . '.htaccess', 'w');
     if (!$fp) {
         $errs[] = sprintf(FILE_WRITE_ERROR, $serendipity_core . '.htaccess') . ' ' . FILE_CREATE_YOURSELF;
-        $errs[] = sprintf(COPY_CODE_BELOW , $serendipity_core . '.htaccess', 'serendipity', htmlspecialchars($content));
+        $errs[] = sprintf(COPY_CODE_BELOW , $serendipity_core . '.htaccess', 'serendipity', serendipity_specialchars($content));
         return $errs;
     } else {
         // Check if an old htaccess file existed and try to preserve its contents. Otherwise completely wipe the file.
@@ -1218,16 +1096,16 @@ global $serendipity;
  * @param string filename is the path to the file to checksum
  * @param string type forces a particular interpretation of newlines.  Mime
  *    types and strings starting with 'text' will cause newlines to be stripped
- *    before the checksum is calculated (default: null, determine from finfo 
+ *    before the checksum is calculated (default: null, determine from finfo
  *    and extension)
- * @return string An MD5 checksum of the file, with newlines removed if it's 
+ * @return string An MD5 checksum of the file, with newlines removed if it's
  *    an ASCII type; or false if the file cannot be read
  */
 function serendipity_FTPChecksum($filename, $type = null) {
     /** Only read the finfo database once */
     static $debug_exts = array();
 
-    // Must be able to read the file 
+    // Must be able to read the file
     if (!is_readable($filename)) {
         return false;
     }
@@ -1243,16 +1121,16 @@ function serendipity_FTPChecksum($filename, $type = null) {
         // If they're case-insensitive equal, strcasecmp() returns 0, or
         // 'false'.  So I use && to find if any of them are 0, in the
         // most likely fail-fast order.
-        if (strcasecmp($ext, 'php') && 
+        if (strcasecmp($ext, 'php') &&
             strcasecmp($ext, 'tpl') &&
             strcasecmp($ext, 'sql') &&
-            strcasecmp($ext, 'js') && 
-            strcasecmp($ext, 'txt') && 
-            strcasecmp($ext, 'htc') && 
-            strcasecmp($ext, 'css') && 
-            strcasecmp($ext, 'dist') && 
-            strcasecmp($ext, 'lib') && 
-            strcasecmp($ext, 'sh') && 
+            strcasecmp($ext, 'js') &&
+            strcasecmp($ext, 'txt') &&
+            strcasecmp($ext, 'htc') &&
+            strcasecmp($ext, 'css') &&
+            strcasecmp($ext, 'dist') &&
+            strcasecmp($ext, 'lib') &&
+            strcasecmp($ext, 'sh') &&
             strcasecmp($ext, 'html') &&
             strcasecmp($ext, 'htm') &&
             !empty($ext)) {
@@ -1268,7 +1146,7 @@ function serendipity_FTPChecksum($filename, $type = null) {
     // Calculate the checksum
     $md5 = false;
     if (stristr($type, 'text')) {
-        // This is a text-type file.  We need to remove linefeeds before 
+        // This is a text-type file.  We need to remove linefeeds before
         // calculating a checksum, to account for possible FTP conversions
         // that are inconvenient, but still valid.  But we don't want to
         // allow newlines anywhere; just different *kinds* of newlines.
@@ -1286,8 +1164,8 @@ function serendipity_FTPChecksum($filename, $type = null) {
 
 /**
  * Validate checksums for all required files.
- * 
- * @return A list of all files that failed checksum, where keys are the 
+ *
+ * @return A list of all files that failed checksum, where keys are the
  *    relative path of the file, and values are the bad checksum
  */
 function serendipity_verifyFTPChecksums() {
@@ -1314,7 +1192,7 @@ function serendipity_verifyFTPChecksums() {
         $path = $basedir . '/' . $prel;
         // Don't take checksums of directories
         if (is_dir($path)) {
-            // Weird that it's even here. 
+            // Weird that it's even here.
             continue;
         }
 
@@ -1334,4 +1212,57 @@ function serendipity_verifyFTPChecksums() {
 
     return $badsums;
 }
+
+
+/**
+ * Check https://raw.github.com/s9y/Serendipity/master/docs/RELEASE for the newest available version
+ *
+ * If the file is not fetch- or parseable (behind a proxy, malformed by Garvin), this will return -1
+ * */
+function serendipity_getCurrentVersion() {
+    global $serendipity;
+
+    if ($serendipity['updateCheck'] != "stable" && $serendipity['updateCheck'] != "beta") {
+        return -1;
+    }
+
+    // Perform update check once a day. We use a suffix of the configured channel, so when
+    // the user switches channels, it has its own timer.
+    if ($serendipity['last_update_check_' . $serendipity['updateCheck']] >= (time()-86400)) {
+        // Last update was performed less than a day ago. Return last result.
+        return $serendipity['last_update_version_' . $serendipity['updateCheck']];
+    }
+
+    serendipity_set_config_var('last_update_check_' . $serendipity['updateCheck'], time());
+    $updateURL = 'https://raw.githubusercontent.com/s9y/Serendipity/master/docs/RELEASE';
+    $context   = stream_context_create(array('http' => array('timeout' => 5.0)));
+    $file      = @file_get_contents($updateURL, false, $context);
+
+    if (!$file) {
+        if (function_exists('curl_init')) {
+            $ch = curl_init($updateURL);
+            curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
+            curl_setopt($ch, CURLOPT_TIMEOUT, "5");
+            $file = curl_exec($ch);
+            curl_close($ch);
+        }
+    }
+
+    if ($file) {
+        if ($serendipity['updateCheck'] == "stable") {
+            if (preg_match('/^stable:(.+)\b/m', $file, $match)) {
+                serendipity_set_config_var('last_update_version_' . $serendipity['updateCheck'], $match[1]);
+                return $match[1];
+            }
+        } else {
+            if (preg_match('/^beta:(.+)\b/m', $file, $match)) {
+                serendipity_set_config_var('last_update_version_' . $serendipity['updateCheck'], $match[1]);
+                return $match[1];
+            }
+        }
+    }
+
+    return -1;
+}
+
 /* vim: set sts=4 ts=4 sw=4 expandtab : */

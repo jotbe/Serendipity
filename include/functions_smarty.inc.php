@@ -1,15 +1,10 @@
-<?php # $Id$
+<?php
 # Copyright (c) 2003-2005, Jannis Hermanns (on behalf the Serendipity Developer Team)
 # All rights reserved.  See LICENSE file for licensing details
 
 if (IN_serendipity !== true) {
     die ("Don't hack!");
 }
-
-if (defined('S9Y_FRAMEWORK_SMARTY')) {
-    return;
-}
-@define('S9Y_FRAMEWORK_SMARTY', true);
 
 /**
  * Fetch a list of trackbacks for an entry
@@ -59,6 +54,18 @@ function &serendipity_printTrackbacks(&$trackbacks) {
 }
 
 /**
+ * Formats a HTML5 timestamp; our serendipity_formatTime handler uses strftime() which does not have this shortcut
+ *
+ * @access public
+ * @param  int  The unix timestamp to format
+ * @return timestamp in ISO-format
+ */
+function serendipity_smarty_html5time($timestamp) {
+    return date("c", $timestamp);
+}
+
+
+/**
  * Smarty: Fetch a smarty block and pass it on to Serendipity Templates - use with Smarty > 3.0 only
  *
  * @access public
@@ -86,7 +93,7 @@ function &serendipity_smarty_fetch($block, $file, $echo = false) {
  * @return  string  The return string
  */
 function serendipity_emptyPrefix($string, $prefix = ': ') {
-    return (!empty($string) ? $prefix . htmlspecialchars($string) : '');
+    return (!empty($string) ? $prefix . serendipity_specialchars($string) : '');
 }
 
 /**
@@ -120,8 +127,8 @@ function serendipity_ifRemember($name, $value, $isDefault = false, $att = 'check
  * @access public
  * @param   array       Smarty parameter input array:
  *                      [FETCHING]
- *                          category:        (int)     The category ID (seperate multiple with ";") to fetch entries from
- *                          viewAuthor:      (int)     The author ID (seperate multiple with ";") to fetch entries from
+ *                          category:        (int)     The category ID (separate multiple with ";") to fetch entries from
+ *                          viewAuthor:      (int)     The author ID (separate multiple with ";") to fetch entries from
  *                          page:            (int)     The number of the page for paginating entries
  *                          id:              (int)     The ID of an entry. If given, only a single entry will be fetched. If left empty, multiple entries are fetched.
  *                          range:           (mixed)   Restricts fetching entries to a specific timespan. Behaves differently depending on the type:
@@ -470,7 +477,7 @@ function serendipity_smarty_showPlugin($params, &$smarty) {
         $params['template'] = 'sidebar.tpl';
     }
 
-    $out = serendipity_plugin_api::generate_plugins($params['side'], null, $params['negate'], $params['class'], $params['id'], $params['template']);
+    $out = serendipity_plugin_api::generate_plugins($params['side'], $params['negate'], $params['class'], $params['id'], $params['template']);
 
     if (empty($out) && !empty($params['empty'])) {
         return $params['empty'];
@@ -607,7 +614,7 @@ function serendipity_smarty_printSidebar($params, &$smarty) {
     }
 
     if (isset($params['template'])) {
-        return serendipity_plugin_api::generate_plugins($params['side'], '', false, null, null, $params['template']);
+        return serendipity_plugin_api::generate_plugins($params['side'], false, null, null, $params['template']);
     } else {
         return serendipity_plugin_api::generate_plugins($params['side']);
     }
@@ -628,6 +635,21 @@ function serendipity_smarty_getFile($params, &$smarty) {
         return;
     }
     return serendipity_getTemplateFile($params['file']);
+}
+
+function serendipity_smarty_getConfigVar($params, &$smarty) {
+    if ( !isset($params['key']) ) {
+        trigger_error("Smarty Error: " . __FUNCTION__ .": missing 'key' parameter", E_USER_WARNING);
+        return;
+    }
+    return serendipity_get_config_var($params['key']);
+}
+
+function serendipity_smarty_setFormToken($params, &$smarty) {
+    if ( isset($params['type']) ) {
+        return serendipity_setFormToken($params['type']);
+    }
+    return serendipity_setFormToken();
 }
 
 
@@ -863,34 +885,47 @@ function serendipity_smarty_init($vars = array()) {
     global $serendipity, $template_config, $template_global_config, $template_config_groups;
 
     if (!isset($serendipity['smarty'])) {
+
         $template_dir = $serendipity['serendipityPath'] . $serendipity['templatePath'] . $serendipity['template'];
+
         if (!defined('IN_serendipity_admin') && file_exists($template_dir . '/template.inc.php')) {
             // If this file exists, a custom template engine will be loaded.
             // Beware: Smarty is used in the Admin backend, despite of this.
-            include $template_dir . '/template.inc.php';
+            include_once $template_dir . '/template.inc.php';
         } else {
+
+            // Backend template overwritten here (NOT earlier due to frontend specific check)
+            if (defined('IN_serendipity_admin')) {
+                $template_dir = $serendipity['serendipityPath'] . $serendipity['templatePath'] . $serendipity['template_backend'];
+            }
+
             // Set a session variable if Smarty fails:
             $prev_smarty = $_SESSION['no_smarty'];
             $_SESSION['no_smarty'] = true;
 
             if (LANG_CHARSET != 'UTF-8') {
+                @define('SMARTY_MBSTRING', false);
                 @define('SMARTY_RESOURCE_CHAR_SET', LANG_CHARSET);
             }
+
+            // define cache resources to load with smarty - see smarty cache readme - needs enabled cache!
+            #@define('APC_EXTENSION_LOADED', extension_loaded('apc') && ini_get('apc.enabled'));
+            #@define('MEMCACHE_EXTENSION_LOADED', (class_exists('Memcached',false) || class_exists('Memcache',false)) && (extension_loaded("memcached") || extension_loaded("memcache")));
 
             // Default Smarty Engine will be used
             @define('SMARTY_DIR', S9Y_PEAR_PATH . 'Smarty/libs/');
 
             if (!class_exists('Smarty')) {
-                include SMARTY_DIR . 'Smarty.class.php';
+                include_once SMARTY_DIR . 'Smarty.class.php';
             }
 
             if (!class_exists('Smarty')) {
                 return false;
             }
 
-            // Load serendipity smarty class loading class
+            // include the serendipity smarty constructor
             if (!class_exists('Serendipity_Smarty')) {
-                include S9Y_INCLUDE_PATH . '/include/serendipity_smarty_class.inc.php';
+                include_once S9Y_INCLUDE_PATH . '/include/serendipity_smarty_class.inc.php';
             }
 
             if (!class_exists('Serendipity_Smarty')) {
@@ -912,10 +947,12 @@ function serendipity_smarty_init($vars = array()) {
             // debugging...
             #echo '<pre>';print_r($serendipity['smarty']);echo '</pre>';#exit;
             #$serendipity['smarty']->testInstall();exit;
+            // extreme debugging with undocumented internal flag which enables a trace output from the parser during debugging
+            #$serendipity['smarty']->_parserdebug = true; // be careful!
 
-            /** 
-             * check for upcoming API changes in 3.2 [smarty_modifier_foobar, --> [smarty_modifier_foobar, smarty_function_foobar, smarty_block_foobar] (see class) ]
-             * smarty_modifier_foobar(Smarty $smarty, $string, …) vs. smarty_modifier_foobar($string, …)
+            /**
+             * ToDo: Check for possible API changes in Smarty 3.2 [smarty_modifier_foobar, --> [smarty_modifier_foobar, smarty_function_foobar, smarty_block_foobar] (in class)]
+             * smarty_modifier_foobar(Smarty $smarty, $string, ...) vs. smarty_modifier_foobar($string, ...)
              **/
             $serendipity['smarty']->registerPlugin('modifier', 'makeFilename', 'serendipity_makeFilename');
             $serendipity['smarty']->registerPlugin('modifier', 'xhtml_target', 'serendipity_xhtml_target');
@@ -925,6 +962,8 @@ function serendipity_smarty_init($vars = array()) {
             $serendipity['smarty']->registerPlugin('modifier', 'ifRemember', 'serendipity_ifRemember');
             $serendipity['smarty']->registerPlugin('modifier', 'checkPermission', 'serendipity_checkPermission');
             $serendipity['smarty']->registerPlugin('modifier', 'serendipity_refhookPlugin', 'serendipity_smarty_refhookPlugin');
+            $serendipity['smarty']->registerPlugin('modifier', 'serendipity_html5time', 'serendipity_smarty_html5time');
+            $serendipity['smarty']->registerPlugin('modifier', 'rewriteURL', 'serendipity_rewriteURL');
 
             $serendipity['smarty']->registerPlugin('function', 'serendipity_printSidebar', 'serendipity_smarty_printSidebar');
             $serendipity['smarty']->registerPlugin('function', 'serendipity_hookPlugin', 'serendipity_smarty_hookPlugin');
@@ -938,17 +977,11 @@ function serendipity_smarty_init($vars = array()) {
             $serendipity['smarty']->registerPlugin('function', 'pickKey', 'serendipity_smarty_pickKey');
             $serendipity['smarty']->registerPlugin('function', 'serendipity_showCommentForm', 'serendipity_smarty_showCommentForm');
             $serendipity['smarty']->registerPlugin('function', 'serendipity_getImageSize', 'serendipity_smarty_getImageSize');
+            $serendipity['smarty']->registerPlugin('function', 'serendipity_getConfigVar', 'serendipity_smarty_getConfigVar');
+            $serendipity['smarty']->registerPlugin('function', 'serendipity_setFormToken', 'serendipity_smarty_setFormToken');
 
             $serendipity['smarty']->registerFilter('pre', 'serendipity_replaceSmartyVars');
 
-        }
-
-        if (!isset($serendipity['smarty_raw_mode'])) {
-            if (file_exists($serendipity['smarty']->getConfigDir(0) . '/layout.php') && $serendipity['template'] != 'default') {
-                $serendipity['smarty_raw_mode'] = true;
-            } else {
-                $serendipity['smarty_raw_mode'] = false;
-            }
         }
 
         if (!isset($serendipity['smarty_file'])) {
@@ -967,7 +1000,63 @@ function serendipity_smarty_init($vars = array()) {
         }
 
         if (!isset($serendipity['smarty_vars']['head_link_stylesheet'])) {
-            $serendipity['smarty_vars']['head_link_stylesheet'] = serendipity_rewriteURL('serendipity.css');
+            $serendipity['smarty_vars']['head_link_stylesheet_frontend'] = serendipity_rewriteURL('serendipity.css');
+
+            if (IN_serendipity_admin === true) {
+                $serendipity['smarty_vars']['head_link_stylesheet'] = serendipity_rewriteURL('serendipity_admin.css');
+            } else {
+                $serendipity['smarty_vars']['head_link_stylesheet'] = serendipity_rewriteURL('serendipity.css');
+            }
+
+            // When templates are switched, append a specific version string to make sure the browser does not cache the CSS
+            if (strstr($serendipity['smarty_vars']['head_link_stylesheet'], '?')) {
+                $serendipity['smarty_vars']['head_link_stylesheet'] .= '&amp;v=' . $serendipity['last_template_change'];
+                $serendipity['smarty_vars']['head_link_stylesheet_frontend'] .= '&amp;v=' . $serendipity['last_template_change'];
+            } else {
+                $serendipity['smarty_vars']['head_link_stylesheet'] .= '?v=' . $serendipity['last_template_change'];
+                $serendipity['smarty_vars']['head_link_stylesheet_frontend'] .= '?v=' . $serendipity['last_template_change'];
+            }
+        }
+
+        if (!isset($serendipity['smarty_vars']['head_link_script'])) {
+            if (IN_serendipity_admin === true) {
+                $serendipity['smarty_vars']['head_link_script'] = serendipity_rewriteURL('serendipity_admin.js');
+            } else {
+                $serendipity['smarty_vars']['head_link_script'] = serendipity_rewriteURL('serendipity.js');
+            }
+
+            if (strstr($serendipity['smarty_vars']['head_link_script'], '?')) {
+                $serendipity['smarty_vars']['head_link_script'] .= '&amp;v=' . $serendipity['last_template_change'];
+            } else {
+                $serendipity['smarty_vars']['head_link_script'] .= '?v=' . $serendipity['last_template_change'];
+            }
+        }
+
+        $wysiwyg_customPlugin = $wysiwyg_customConfig = null;
+
+        if (defined('IN_serendipity_admin') && $serendipity['wysiwyg']) {
+
+            // check force internal toolbar config file
+            if (strpos($serendipity['wysiwygToolbar'], 'NOCC-') !== false) {
+                $serendipity['wysiwygToolbar'] = substr($serendipity['wysiwygToolbar'], 5);
+                $force_internal_toolbar = true;
+            }
+            // check ckeditor custom plugin file
+            $ccp = serendipity_getTemplateFile('admin/ckeditor_custom_plugin.js', 'serendipityHTTPPath', true);
+            $wysiwyg_customPlugin = (!empty($ccp) && !$force_internal_toolbar) ? $ccp : $serendipity['serendipityHTTPPath'] . 'htmlarea/ckeditor_s9y_plugin.js';
+
+            // check ckeditor custom config file
+            $ccc = serendipity_getTemplateFile('admin/ckeditor_custom_config.js', 'serendipityHTTPPath', true);
+            $wysiwyg_customConfig = (!empty($ccc) && !$force_internal_toolbar) ? $ccc : $serendipity['serendipityHTTPPath'] . 'htmlarea/ckeditor_s9y_config.js';
+
+        }
+
+        $_force_backendpopups = explode(',', $serendipity['enableBackendPopupGranular']);
+        $force_backendpopups  = array();
+        foreach($_force_backendpopups AS $fbp_key => $fbp_val) {
+            $fbp_val = trim($fbp_val);
+            if (empty($fbp_val)) continue;
+            $force_backendpopups[$fbp_val] = $fbp_val;
         }
 
         $serendipity['smarty']->assign(
@@ -977,9 +1066,13 @@ function serendipity_smarty_init($vars = array()) {
                 'head_title'                => $serendipity['head_title'],
                 'head_subtitle'             => $serendipity['head_subtitle'],
                 'head_link_stylesheet'      => $serendipity['smarty_vars']['head_link_stylesheet'],
+                'head_link_script'          => $serendipity['smarty_vars']['head_link_script'],
+                'head_link_stylesheet_frontend' => $serendipity['smarty_vars']['head_link_stylesheet_frontend'],
 
                 'is_xhtml'                  => true,
                 'use_popups'                => $serendipity['enablePopup'],
+                'use_backendpopups'         => $serendipity['enableBackendPopup'],
+                'force_backendpopups'       => $force_backendpopups,
                 'is_embedded'               => (!$serendipity['embed'] || $serendipity['embed'] === 'false' || $serendipity['embed'] === false) ? false : true,
                 'is_raw_mode'               => $serendipity['smarty_raw_mode'],
                 'is_logged_in'              => serendipity_userLoggedIn(),
@@ -1002,6 +1095,11 @@ function serendipity_smarty_init($vars = array()) {
                 'category'                  => $category,
                 'category_info'             => $category_info,
                 'template'                  => $serendipity['template'],
+                'template_backend'          => $serendipity['template_backend'],
+                'wysiwygToolbar'            => $serendipity['wysiwygToolbar'],
+                'wysiwyg_customPlugin'      => $wysiwyg_customPlugin,
+                'wysiwyg_customConfig'      => $wysiwyg_customConfig,
+                'use_autosave'              => (serendipity_db_bool($serendipity['use_autosave']) ? 'true' : 'false'),
 
                 'dateRange'                 => (!empty($serendipity['range']) ? $serendipity['range'] : array())
             )
@@ -1013,7 +1111,32 @@ function serendipity_smarty_init($vars = array()) {
 
         // For advanced usage, we allow template authors to create a file 'config.inc.php' where they can
         // setup custom smarty variables, modifiers etc. to use in their templates.
-        @include_once $serendipity['smarty']->getConfigDir(0) . '/config.inc.php';
+
+        // If a template engine is defined we need that config.inc.php file as well. The template's actual file is loaded after that to be able to overwrite config.
+        if (isset($serendipity['template_engine']) && $serendipity['template_engine'] != null) {
+            $p = explode(',', $serendipity['template_engine']);
+            foreach($p AS $te) {
+                $config = $serendipity['serendipityPath'] . $serendipity['templatePath'] . trim($te) . '/config.inc.php';
+
+                if (file_exists($config)) {
+                    include_once $config;
+                }
+
+            }
+        }
+
+        // FIRST: Load config of the currently configured FRONTEND template. We might actually need this in the backend (sidebar configuration, IPTC options, some others).
+        // SECOND: Load config of the currently set template, which can also be the BACKEND template, or be the same as before. include_once takes care of only including the file once.
+        $config =  $serendipity['serendipityPath'] . $serendipity['templatePath'] . $serendipity['template'] . '/config.inc.php';
+        if (file_exists($config)) {
+            include_once $config;
+        }
+
+        $config = $serendipity['smarty']->getConfigDir(0) . '/config.inc.php';
+        if (file_exists($config)) {
+            include_once $config;
+        }
+
 
         if (is_array($template_loaded_config)) {
             $template_vars =& $template_loaded_config;
@@ -1036,17 +1159,16 @@ function serendipity_smarty_init($vars = array()) {
 function serendipity_smarty_purge() {
     global $serendipity;
 
-    /* Attempt to init Smarty, brrr */
-    serendipity_smarty_init();
-
-    $files = serendipity_traversePath($serendipity['smarty']->getCompileDir() . DIRECTORY_SEPARATOR, '', false, '/.+\.tpl\.php$/');
-
-    if ( !is_array($files) ) {
-        return false;
-    }
-
-    foreach ( $files as $file ) {
-        @unlink($serendipity['smarty']->getCompileDir() . DIRECTORY_SEPARATOR . $file['name']);
+    serendipity_smarty_init();  # need initiated smarty to get the compile/cache dir
+    $dir = new RecursiveDirectoryIterator($serendipity['smarty']->getCompileDir());
+    $ite = new RecursiveIteratorIterator($dir);
+    $files = new RegexIterator($ite, '@.*\.tpl\.php$@', RegexIterator::GET_MATCH);
+    foreach($files as $file) {
+        if (is_writable($file[0])) {
+            unlink($file[0]);
+        } else {
+            if (is_object($serendipity['logger'])) $serendipity['logger']->warning("Could not delete " . $file[0]);
+        }
     }
 }
 
@@ -1076,4 +1198,32 @@ function serendipity_smarty_shutdown($serendipity_directory = '') {
         $serendipity['smarty_file'] = '404.tpl';
     }
     $serendipity['smarty']->display(serendipity_getTemplateFile($serendipity['smarty_file'], 'serendipityPath'));
+}
+
+/**
+ * Render a smarty-template
+ * $template: path to the template-file
+ * $data: map with the variables to assign
+ * $debugtype: If set, debug string is prepended. Can be set to HTML or JS.
+ * $debug: Possible debug string that is prepended to output
+ */
+function serendipity_smarty_show($template, $data = null, $debugtype = null, $debug = null) {
+    global $serendipity;
+
+    if (!is_object($serendipity['smarty'])) {
+        serendipity_smarty_init();
+    }
+
+    $serendipity['smarty']->assign($data);
+
+    $tplfile = ($template == 'preview_iframe.tpl') ? serendipity_getTemplateFile($template, 'serendipityPath', true) : serendipity_getTemplateFile($template, 'serendipityPath');
+    if ($debug !== null) {
+        if ($debugtype == "HTML") {
+            $debug = "<!-- Dynamically fetched " . htmlspecialchars(str_replace($serendipity['serendipityPath'], '', $tplfile)) . " on " . date('Y-m-d H:i') . ", called from: " . $debug . " -->\n";
+        } else {
+            $debug = "/* Dynamically fetched " . htmlspecialchars(str_replace($serendipity['serendipityPath'], '', $tplfile)) . " on " . date('Y-m-d H:i') . ", called from: " . $debug . " */\n";
+        }
+    }
+
+    return $debug . $serendipity['smarty']->fetch('file:'. $tplfile);
 }

@@ -6,17 +6,6 @@ if (IN_serendipity !== true) { die ("Don't hack!"); }
 $serendipity['smarty']->assign(array('currpage'  => "http://".$_SERVER['HTTP_HOST'].$_SERVER['REQUEST_URI'],
                                      'currpage2' => $_SERVER['REQUEST_URI']));
 
-if (!function_exists('serendipity_smarty_html5time')) {
-    function serendipity_smarty_html5time($timestamp) { return date("c", $timestamp); }
-
-    if( defined('Smarty::SMARTY_VERSION') ) {
-        $serendipity['smarty']->registerPlugin('modifier', 'serendipity_html5time', 'serendipity_smarty_html5time');
-    } else {
-        // old Smarty 2 syntax
-        $serendipity['smarty']->register_modifier('serendipity_html5time', 'serendipity_smarty_html5time');
-    }
-}
-
 if (class_exists('serendipity_event_spamblock')) {
     $required_fieldlist = serendipity_db_query("SELECT value FROM {$serendipity['dbPrefix']}config WHERE name LIKE '%spamblock%required_fields'", true, 'assoc');
 } elseif (class_exists('serendipity_event_commentspice')) {
@@ -41,6 +30,12 @@ $serendipity['smarty']->assign('is_templatechooser', $_SESSION['serendipityUseTe
 
 $template_config = array(
     array(
+      'var'           => 'infotwok',
+      'name'          => 'infotwok',
+      'type'          => 'custom',
+      'custom'        => TWOK11_INSTR,
+    ),
+    array(
         'var' => 'date_format',
         'name' => GENERAL_PLUGIN_DATEFORMAT . " (http://php.net/strftime)",
         'type' => 'select',
@@ -61,7 +56,7 @@ $template_config = array(
         'var' => 'header_img',
         'name' => TWOK11_HEADER_IMG,
         'type' => 'media',
-        'default' => serendipity_getTemplateFile('header.jpg')
+        'default' => serendipity_getTemplateFile('header.jpg', 'serendipityHTTPPath', true)
     ),
     array(
         'var' => 'webfonts',
@@ -77,10 +72,13 @@ $template_config = array(
                                 'dserif' => 'Droid Serif')
     ),
     array(
-        'var' => 'userstyles',
-        'name' => TWOK11_USERSTYLES,
-        'type' => 'boolean',
-        'default' => false
+        'var' => 'imgstyle',
+        'name' => TWOK11_IMGSTYLE,
+        'type' => 'select',
+        'default' => 'plain-images',
+        'select_values' => array('none' => TWOK11_IMGSTYLE_NONE,
+                                'plain-images' => TWOK11_IMGSTYLE_BORDER,
+                                'fancy-images' => TWOK11_IMGSTYLE_SHADOW)
     ),
     array(
         'var' => 'imgstyle',
@@ -109,6 +107,24 @@ $template_config_groups = NULL;
 $template_global_config = array('navigation' => true);
 $template_loaded_config = serendipity_loadThemeOptions($template_config, $serendipity['smarty_vars']['template_option'], true);
 serendipity_loadGlobalThemeOptions($template_config, $template_loaded_config, $template_global_config);
+
+// 2k11 shall be a re-usable frontend theme that other templates can inherit (through "Engine: 2k11" in their info.txt)
+// If those themes use a custom config.inc.php file, they may need to declare their own pre-event-hooks.
+// Since serendipity_plugin_api_pre_event_hook() is the advertised method for template authors to hook into
+// 2k11 cannot declare this on its own. We rather use per-event hook functions now, which templates other than 2k11
+// (or other custom engines) should not use.
+function serendipity_plugin_api_pre_event_hook_js($event, &$bag, &$eventData, &$addData) {
+    // always add newlines to the end of last element, in case of other plugins using this hook and
+    // always start at line Col 1, to populate the (virtual) serendipity.js file
+    echo "
+jQuery(function() {
+    jQuery('input[type=\"url\"]').change(function() {
+        if (this.value != '' && ! (this.value.substr(0,7) == 'http://' || this.value.substr(0,8) == 'https://')) {
+            this.value = 'http://' + this.value;
+        }
+    });
+})\n\n";
+}
 
 if ($_SESSION['serendipityUseTemplate']) {
     $template_loaded_config['use_corenav'] = false;

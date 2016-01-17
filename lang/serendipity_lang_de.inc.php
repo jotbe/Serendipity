@@ -1,4 +1,4 @@
-<?php # $Id$
+<?php
 # Copyright (c) 2003-2005, Jannis Hermanns (on behalf the Serendipity Developer Team)
 # All rights reserved.  See LICENSE file for licensing details
 # Translation (c) Jannis Hermanns, Garvin Hicking and others
@@ -19,7 +19,7 @@
 @define('HAVE_TO_BE_LOGGED_ON', 'Sie müssen angemeldet sein, um diese Seite zu sehen');
 @define('WRONG_USERNAME_OR_PASSWORD', 'Das Passwort oder der Username war falsch. Bitte wiederholen Sie die Eingabe.');
 @define('APPEARANCE', 'Aussehen');
-@define('MANAGE_STYLES', 'Styles verwalten');
+@define('MANAGE_STYLES', 'Themes verwalten');
 @define('CONFIGURE_PLUGINS', 'Plugins verwalten');
 @define('CONFIGURATION', 'Konfiguration');
 @define('BACK_TO_BLOG', 'Zurück zum Blog');
@@ -120,7 +120,7 @@
 @define('VIEW_FULL', 'ganz anzeigen');
 @define('VIEW_TOPICS', 'Überschriften anzeigen');
 @define('AT', 'um');
-@define('SET_AS_TEMPLATE', 'Als Template wählen');
+@define('SET_AS_TEMPLATE', 'Als Theme wählen');
 @define('IN', 'in');
 @define('EXCERPT', 'Auszug');
 @define('TRACKED', 'Aufgenommen');
@@ -163,7 +163,7 @@
 @define('CATEGORY_DELETED', 'Kategorie #%s wurde gelöscht.');
 @define('INVALID_CATEGORY', 'Es wurde keine Kategorie zum Löschen gewählt.');
 @define('CATEGORY_SAVED', 'Kategorie gespeichert');
-@define('SELECT_TEMPLATE', 'Wählen Sie das Template für das Blog');
+@define('SELECT_TEMPLATE', 'Wählen Sie das Theme für das Blog');
 @define('ENTRIES_NOT_SUCCESSFULLY_INSERTED', 'Einträge konnten nicht importiert werden!');
 @define('YES', 'Ja');
 @define('NO', 'Nein');
@@ -386,11 +386,11 @@
 @define('INSTALL_CAT_DISPLAY', 'Design und Optionen');
 @define('INSTALL_CAT_DISPLAY_DESC', 'Legt fest, wie Serendipity aussieht');
 @define('INSTALL_WYSIWYG', 'Grafischen WYSIWYG-Editor verwenden');
-@define('INSTALL_WYSIWYG_DESC', 'Soll der grafische WYSIWYG-Editor verwendet werden? (Funktioniert im  IE5+, größenteils Mozilla 1.3+)');
+@define('INSTALL_WYSIWYG_DESC', 'Soll der grafische WYSIWYG-Editor verwendet werden?');
 @define('INSTALL_XHTML11', 'XHTML 1.1 Standard verwenden');
 @define('INSTALL_XHTML11_DESC', 'Soll der XHTML 1.1 Standard verwendet werden? (Erzeugt gültigen Code, kann jedoch bei älteren Browsern Probleme hervorrufen)');
 @define('INSTALL_POPUP', 'Popups für Kommentare, Trackbacks usw. verwenden?');
-@define('INSTALL_POPUP_DESC', 'Sollen die Links zu den Kommentaren, Trackbacks etc. in Popup-Fenstern geöffnet werden?');
+@define('INSTALL_POPUP_DESC', 'Sollen die Links zu den Kommentaren, Trackbacks etc. in Popup-Fenstern geöffnet werden? (Wird nicht von allen Themes unterstützt)');
 @define('INSTALL_EMBED', 'Eingebettete Nutzung von Serendipity aktivieren?');
 @define('INSTALL_EMBED_DESC', 'Falls Serendipity in eine normale Seite eingebettet werden soll, aktivieren Sie diese Option. Serendipity stellt dann nur Inhalte dar, und Sie können sich um Header und Footer kümmern. Lesen Sie die Datei README, um hierzu weitere Informationen zu erhalten.');
 @define('INSTALL_TOP_AS_LINKS', 'Top Exits/Referrers als Link anzeigen?');
@@ -415,9 +415,9 @@
 @define('INSTALL_THUMBDIM_LARGEST', 'Längste Seite');
 @define('INSTALL_THUMBDIM_WIDTH', 'Breite');
 @define('INSTALL_THUMBDIM_HEIGHT', 'Höhe');
-@define('INSTALL_THUMBDIM_DESC', 'Legt fest, wie die Größe der Thumbnails angepasst werden soll. Der Standard 
+@define('INSTALL_THUMBDIM_DESC', 'Legt fest, wie die Größe der Thumbnails angepasst werden soll. Der Standard
     "' . INSTALL_THUMBDIM_LARGEST .  '" nutzt die größte Seite als Beschränkung, so dass weder Breite noch Höhe die festgelegte Zahl überschreiten dürfen.
-    "' . INSTALL_THUMBDIM_WIDTH . '" und "' .  INSTALL_THUMBDIM_HEIGHT . '" 
+    "' . INSTALL_THUMBDIM_WIDTH . '" und "' .  INSTALL_THUMBDIM_HEIGHT . '"
     legen lediglich die Höhe bzw. Breite als größte Seite fest, so dass die jeweils andere Angabe auch größer als die festgelegte Zahl sein darf.');
 
 /* Personal details */
@@ -609,7 +609,7 @@
 @define('WONT_INSTALL_DB_AGAIN', 'werde Datenbank nicht erneut erzeugen');
 @define('CHECK_DATABASE_EXISTS', 'Prüfe, ob Datenbank und Tabellen bereits bestehen ...');
 @define('CREATING_PRIMARY_AUTHOR', 'Erstelle Hauptbenutzer \'%s\' ...');
-@define('SETTING_DEFAULT_TEMPLATE', 'Setze Standard-Template ...');
+@define('SETTING_DEFAULT_TEMPLATE', 'Setze Standard-Theme ...');
 @define('INSTALLING_DEFAULT_PLUGINS', 'Installiere Standard-Plugins ...');
 @define('SERENDIPITY_INSTALLED', 'Serendipity wurde erfolgreich installiert!');
 @define('VISIT_BLOG_HERE', 'Besuchen Sie Ihr neues Blog hier');
@@ -617,7 +617,7 @@
 @define('ERROR_DETECTED_IN_INSTALL', 'Bei der Installation trat ein Fehler auf');
 @define('OPERATING_SYSTEM', 'Betriebssystem');
 @define('WEBSERVER_SAPI', 'Webserver SAPI');
-@define('TEMPLATE_SET', '\'%s\' wurde als Template gewählt.');
+@define('TEMPLATE_SET', '\'%s\' wurde als Theme gewählt.');
 @define('SEARCH_ERROR', 'Die Suche konnte nicht wie gewünscht ausgeführt werden. Hinweis für den Administrator dieses Blogs: Dieser Fehler kann durch fehlende Index-Schlüssel der Datenbank verursacht werden. Auf MySQL-Systemen muss der Datenbankbenutzer-Account in der Lage sein, Index-Schlüssel zu erstellen und folgende Abfrage auszuführen: <pre>CREATE FULLTEXT INDEX entry_idx on %sentries (title,body,extended)</pre> Die genaue Fehlermeldung der Datenbank bei der Suche lautete: <pre>%s</pre>');
 @define('EDIT_THIS_CAT', 'Bearbeite "%s"');
 @define('CATEGORY_REMAINING', 'Diese Kategorie löschen und Einträge darin in folgende Kategorie verschieben');
@@ -626,7 +626,7 @@
 @define('RESET_DATE', 'Datum zurücksetzen');
 @define('RESET_DATE_DESC', 'Hier klicken, um das Datum auf die aktuelle Systemzeit zu setzen');
 @define('PROBLEM_PERMISSIONS_HOWTO', 'Zugriffsrechte können durch folgenden Shell-Befehl (oder auch mittels FTP-Client) geändert werden: `<em>%s</em>` mit dem Namen des nicht beschreibbaren Verzeichnisses.');
-@define('WARNING_TEMPLATE_DEPRECATED', 'Hinweis: Das aktuelle Template verwendet eine ältere Methode der HTML-Erzeugung. Falls möglich, bitte das Template auf die Nutzung von Smarty optimieren.');
+@define('WARNING_TEMPLATE_DEPRECATED', 'Hinweis: Das aktuelle Theme verwendet eine ältere Methode der HTML-Erzeugung. Falls möglich, bitte das Theme auf die Nutzung von Smarty optimieren.');
 @define('ENTRY_PUBLISHED_FUTURE', 'Dieser Artikel wurde noch nicht veröffentlicht.');
 @define('ENTRIES_BY', 'Einträge von %s');
 @define('PREVIOUS', 'Zurück');
@@ -684,8 +684,8 @@
 @define('IMAGE_MORE_INPUT', 'Mehr Bilder hinzufügen');
 
 @define('BACKEND_TITLE', 'Zusätzlicher Informationstext, der auf der Plugin-Oberfläche dargestellt wird');
-@define('BACKEND_TITLE_FOR_NUGGET', 'An dieser Stelle können Sie einen eigenen Text angeben, der auf der Plugin-Konfigurationsoberfläche zusätzlich angezeigt wird. Denn falls Sie mehrere HTML-Klötze mit leerem Titel angelegt haben, ist es andernfalls schwierig, diese auseinanderzuhalten.');
-@define('CATEGORIES_ALLOW_SELECT', 'Besuchern erlauben, mehrere Kategorien gleichzeit darzustellen?');
+@define('BACKEND_TITLE_FOR_NUGGET', 'An dieser Stelle können Sie einen eigenen Text angeben, der auf der Plugin-Konfigurationsoberfläche zusätzlich angezeigt wird. Denn falls Sie mehrere HTML-Klötze mit leerem Titel angelegt haben, ist es gegebenenfalls schwierig, diese auseinanderzuhalten.');
+@define('CATEGORIES_ALLOW_SELECT', 'Besuchern erlauben, mehrere Kategorien gleichzeitig darzustellen?');
 @define('CATEGORIES_ALLOW_SELECT_DESC', 'Falls diese Option aktiviert ist, wird eine Auswahlbox neben jeder Kategorie angezeigt, damit Besucher mehrere Kategorien gleichzeitig auswählen können.');
 @define('PAGE_BROWSE_PLUGINS', 'Seite %s von %s, insgesamt %s Plugins.');
 @define('INSTALL_CAT_PERMALINKS', 'Permalinks');
@@ -740,7 +740,7 @@
 @define('PLUGIN_GROUP_BACKEND_EDITOR', 'Backend: Editor');
 @define('PLUGIN_GROUP_BACKEND_USERMANAGEMENT', 'Backend: Benutzerverwaltung');
 @define('PLUGIN_GROUP_BACKEND_METAINFORMATION', 'Backend: Meta-Informationen');
-@define('PLUGIN_GROUP_BACKEND_TEMPLATES', 'Backend: Templates');
+@define('PLUGIN_GROUP_BACKEND_TEMPLATES', 'Backend: Themes');
 @define('PLUGIN_GROUP_BACKEND_FEATURES', 'Backend: Features');
 @define('PLUGIN_GROUP_IMAGES', 'Bilder / Medien');
 @define('PLUGIN_GROUP_ANTISPAM', 'Antispam');
@@ -853,8 +853,8 @@
 @define('MEDIA_PROP_DESC', 'Tragen Sie eine Liste von ";" separierten Eigenschaftsfeldern ein, die für Mediendatenbankeinträge ausgefüllt werden können.');
 @define('MEDIA_PROP_MULTIDESC', '(Sie können ":MULTI" nach jedem Element eintragen, um anzugeben dass für dieses Feld eine lange Beschreibung erwartet wird)');
 
-@define('STYLE_OPTIONS_NONE', 'Dieses Template hat keine speziellen Optionen. Wie Ihr Template solche Optionen anlegen kann, ist in der technischen Dokumentation auf www.s9y.org im Bereich "Configuration of Theme options" beschrieben.');
-@define('STYLE_OPTIONS', 'Template-Optionen');
+@define('STYLE_OPTIONS_NONE', 'Dieses Theme hat keine speziellen Optionen. Wie Ihr Theme solche Optionen anlegen kann, ist in der technischen Dokumentation auf www.s9y.org im Bereich "Configuration of Theme options" beschrieben.');
+@define('STYLE_OPTIONS', 'Theme-Optionen');
 
 @define('PLUGIN_AVAILABLE_COUNT', 'Gesamt: %d Plugins.');
 
@@ -919,7 +919,7 @@
 @define('COMMENT_TOKENS_DESC', 'Diese Methode setzt Tokens ein, damit Kommentare direkt aus der Hinweis-E-Mail heraus gelöscht oder akzeptiert werden können. Diese Funktion ist für höheren Komfort gedacht, geht aber zu Lasten der Sicherheit: Wenn jemand die E-Mail abfängt, kann diese Person entsprechende Kommentare ohne weitere Authentifikation löschen oder freischalten.');
 @define('COMMENT_NOTOKENMATCH', 'Der Kommentar-Link ist nicht mehr gültig, oder Kommentar #%s wurde bereits akzeptiert oder gelöscht.');
 @define('TRACKBACK_NOTOKENMATCH', 'Der Kommentar-Link ist nicht mehr gültig, oder Trackback #%s wurde bereits akzeptiert oder gelöscht.');
-@define('BADTOKEN', 'Ungültiger Kommentar-Link'); 
+@define('BADTOKEN', 'Ungültiger Kommentar-Link');
 
 @define('CONFIRMATION_MAIL_ALWAYS', "Hallo %s,\n\nSie haben einen neuen Kommentar zu \"%s\" erstellt. Ihr Kommentar war:\n\n%s\n\nDer Betreiber dieses Blogs hat die Bestätigung per E-Mail gewünscht, daher müssen Sie folgenden Link anklicken:\n<%s>\n");
 @define('CONFIRMATION_MAIL_ONCE', "Hallo %s,\n\nSie haben einen neuen Kommentar zu \"%s\" erstellt. Ihr Kommentar war:\n\n%s\n\nDer Betreiber dieses Blogs hat die Bestätigung per E-Mail gewünscht, daher müssen Sie folgenden Link anklicken:\n<%s>\n\nNachdem Sie dies getan haben, können Sie auf dem Blog jederzeit mit ihrem Namen und E-Mail-Adresse ohne weitere Freischaltung kommentieren.");
@@ -946,11 +946,11 @@
 
 // Next lines were translated on 2009/06/03
 @define('DELETE_FILE_FAIL', 'Kann das Bild namens <b>%s</b> nicht löschen');
-@define('INSTALL_OFFSET_ON_SERVER_TIME', 'Worauf basiert die Zeitdifferenz zur Server-Zeitzone?');
+@define('INSTALL_OFFSET_ON_SERVER_TIME', 'Basiert die Zeitdifferenz auf der Server-Zeitzone?');
 @define('INSTALL_OFFSET_ON_SERVER_TIME_DESC', 'Eintragszeiten nach Server-Zeitzone eintragen oder nicht. YES wählt die Server-Zeitzone als Basis, NO wählt GMT.');
 @define('NOT_WRITABLE_SPARTACUS', ' (Nur notwendig wenn Spartacus zur Plugin-Installation über das Internet genutzt werden soll)');
 @define('MEDIA_ALT', 'ALT-Attribut (Bildinhalt oder Kurzbeschreibung)');
-@define('MEDIA_PROPERTY_ALT', 'Bildinhalt (Zusammenfassung für das ALT-Attribut)');
+@define('MEDIA_PROPERTY_ALT', 'Bildinhalt (im ALT-Attribut)');
 @define('MEDIA_TITLE', 'TITLE-Attribut (wird beim Überfahren mit der Maus angezeigt)');
 
 @define('QUICKSEARCH_SORT', 'How should search-results be sorted?');
@@ -960,7 +960,7 @@
 @define('PERMISSION_HIDDENGROUP', 'Hidden group / Non-Author');
 
 @define('SEARCH_FULLENTRY', 'Show full entry');
-@define('NAVLINK_AMOUNT', 'Anzahl der Links in der Navigationsleiste (Styles verwalten-Seite muss danach neu geladen werden)');
+@define('NAVLINK_AMOUNT', 'Anzahl der Links in der Navigationsleiste (Themes verwalten-Seite muss danach neu geladen werden)');
 @define('NAV_LINK_TEXT', 'Text des Navigationsleisten-Links');
 @define('NAV_LINK_URL', 'URL des Navigationsleisten-Links');
 @define('MODERATE_SELECTED_COMMENTS', 'Markierte Kommentare freischalten');
@@ -977,3 +977,138 @@
 
 // added 2012-11-29
 @define('PLAIN_ASCII_NAMES', '(keine Sonderzeichen, Umlaute)');
+// New 2.0 constants
+@define('SIMPLE_FILTERS', 'Vereinfachte Filter');
+@define('SIMPLE_FILTERS_DESC', 'Wenn aktiviert, werden Suchformulare und Filteroptionen auf die notwendigen Optionen reduziert. Ist diese Option deaktiviert, werden alle erweiterten Filteroptionen, z.b. beim Eintrags-Editor oder der Mediendatenbank, angezeigt.');
+@define('TOGGLE_SELECT', 'Zu Auswahl hinzufügen');
+@define('MORE', 'Mehr');
+@define('ENTRY_STATUS', 'Eintragsstatus');
+@define('SCHEDULED', 'Vorgemerkt');
+@define('PUBLISHED', 'Veröffentlicht');
+@define('ENTRY_METADATA', 'Eintrags-Metadaten');
+@define('NAVIGATION', 'Navigation');
+@define('MAIN_MENU', 'Hauptmenü');
+@define('MENU_PERSONAL', 'Persönliches Menü');
+@define('MENU_DASHBOARD', 'Dashboard');
+@define('MENU_ACTIVITY', 'Aktivität');
+@define('MENU_SETTINGS', 'Einstellungen');
+@define('MENU_TEMPLATES', 'Themes');
+@define('MENU_PLUGINS', 'Plugins');
+@define('MENU_USERS', 'Benutzer');
+@define('MENU_GROUPS', 'Gruppen');
+@define('MENU_MAINTENANCE', 'Wartung');
+@define('ALIGN_TOP', 'Oben');
+@define('ALIGN_LEFT', 'Links');
+@define('ALIGN_RIGHT', 'Rechts');
+@define('SHOW_METADATA', 'Metadaten zeigen');
+@define('RANGE_FROM', 'Von');
+@define('RANGE_TO', 'Bis');
+@define('UPLOAD', 'Upload');
+@define('DOWNLOAD', 'Download');
+@define('ENTRY_PUBLISHED', 'Eintrag #%s veröffentlicht');
+@define('PUBLISH_ERROR', 'Fehler bei der Veröffentlichung:');
+@define('UPDATE_NOTIFICATION', 'Update-Hinweis');
+@define('NEW_VERSION_AVAILABLE', 'Neue stabile Serendipity version verfügbar: ');
+@define('MOVE', 'Bewegen');
+@define('MOVE_UP', 'Nach oben');
+@define('MOVE_DOWN', 'Nach unten');
+@define('INSTALL_NEW_SIDEBAR_PLUGIN', 'Seitenleisten-Plugin installieren');
+@define('INSTALL_NEW_EVENT_PLUGIN', 'Ereignis-Plugin installieren');
+@define('TEMPLATE_OPTIONS', 'Theme-Optionen');
+@define('CURRENT_TEMPLATE', 'Aktuelles Theme');
+@define('TEMPLATE_INFO', 'Theme-Informationen');
+@define('AVAILABLE_TEMPLATES', 'Verfügbare Themes');
+@define('TIMESTAMP_RESET', 'Das Datum wurde auf die aktuelle Systemzeit gesetzt.');
+
+@define('CLEANCOMPILE_PASS', '[smarty clearCompiledTemplate(%s)]');
+@define('CLEANCOMPILE_FAIL', 'Es sind derzeit keine Dateien zu löschen.');
+@define('CLEANCOMPILE_TITLE', 'Template-Cache leeren');
+@define('CLEANCOMPILE_INFO', 'Löscht alle kompilierten Template-Dateien des derzeit aktiven Themes. Die kompilierten Template-Dateien werden bei Bedarf vom Smarty-Framework automatisch neu erzeugt.');
+@define('INSTALLER_KEY', 'Schlüssel');
+@define('INSTALLER_VALUE', 'Wert');
+@define('CURRENT_TAB', 'Aktives Tab: ');
+@define('PINGBACKS', 'Pingbacks');
+@define('NO_PINGBACKS', 'Keine Pingbacks');
+@define('GROUP_NAME_DESC', "Wenn hier ein String angegeben wird, der in irgendeine Sprachdatei als Konstante definiert ist (z.B. 'USERLEVEL_EDITOR_DESC'), wird die zugewiesene Übersetzung dieses Gruppennamens ausgegeben. Es ist möglich, eigene Konstanten zu definieren und ihre Namen hier anzugeben. Sind übersetzbare Gruppennamen nicht benötigt, kann hier jeder beliebige String eingegeben werden.");
+@define('INSTALLER_CLI_TOOLS', 'Serverseitige Kommandozeilen-Tools');
+@define('INSTALLER_CLI_TOOLNAME', 'CLI-Tool');
+@define('INSTALLER_CLI_TOOLSTATUS', 'Ausführbar?');
+@define('VIDEO', 'Video');
+@define('RESET_FILTERS', 'Filter entfernen');
+@define('UPDATE_FAILMSG', 'Update-Check für neue Serendipity-Version fehlgeschlagen. Das kann passieren wenn die URL https://raw.github.com/s9y/Serendipity/master/docs/RELEASE nicht erreichbar ist, der Server ausgehende Verbindungen verhindert oder es andere Verbindungsprobleme gibt.');
+@define('UPDATE_FAILACTION', 'Automatischen Update-Check deaktivieren');
+@define('UPDATE_NOTIFICATION_DESC', 'Sollen Update-Checks im Dashboard angezeigt werden, und wenn ja für welche Versionen?');
+@define('FRONTEND', 'Frontend');
+@define('BACKEND', 'Backend');
+@define('MEDIA_UPLOAD_RESIZE', 'Vor dem Upload Größe anpassen');
+@define('MEDIA_UPLOAD_RESIZE_DESC', 'Mittels Javascript werden Bilder vor dem Upload an die gewählte Maximalgröße angepasst. Wenn aktiv, wird Ajax für den Bildupload verwendet was auch zu der Entfernung des "Eigenschaften eingeben"-Buttons führt, dies muss dann separat geschehen.');
+@define('LOG_LEVEL', 'Log Level');
+@define('LOG_LEVEL_DESC', 'An einigen Stellen im Serendipity-Code wurden Debugging-Ausgaben platziert. Wenn diese Option auf "Debug" gesetzt wird, werden jene Ausgaben nach templates_c/logs/ geschrieben. Diese Option sollte nur aktiviert werden, wenn Probleme in der Funktionsausführung bestehen. Wird die Option auf "Fehler" gesetzt, werden PHP-Fehler in jenes Logfile geschrieben, hierbei wird die PHP error_log Option überschrieben.');
+@define('DEBUG', 'Debug');
+@define('CUSTOM_CONFIG', 'Eigene Konfigurationsdatei');
+@define('PLUGIN_ALREADY_INSTALLED', 'Plugin ist bereits installiert und unterstützt die Mehrfachinstallation ("stackable") nicht.');
+@define('INSTALL_DBPREFIX_INVALID', 'Der Datenbank-Tabellenpräfix darf nicht leer sein und darf nur Zahlen, Nummern und den Unterstrich enthalten.');
+@define('SYNDICATION_PLUGIN_SUBTOME', 'subToMe');
+@define('SYNDICATION_PLUGIN_SUBTOME_DESC', 'Zeigt den subToMe button, mit dem Feed-Abonnements einfacher für Besucher verwaltet werden können.');
+@define('SYNDICATION_PLUGIN_BIGIMG_DESC', 'Zeigt ein (großes) Bild oberhalb der Seitenleiste. Hier kann eine volle (oder absolut referenzierte) URL eingetragen werden oder "none" für einen Textlink (bisheriger Standard)');
+@define('INSTALL_BACKENDPOPUP', 'Popups für das Backend verwenden?');
+@define('INSTALL_BACKENDPOPUP_DESC', 'Sollen im Backend Popup-Fenster eingesetzt werden? Wenn deaktiviert (standard), werden eingebettete modale Dialoge z.b. für die Mediendatenbank und die Kategorieauswahl verwendet.');
+@define('UPDATE_STABLE', 'stabil');
+@define('UPDATE_BETA', 'beta');
+@define('SYNDICATION_PLUGIN_FEEDFORMAT', 'Feed-Format');
+@define('SYNDICATION_PLUGIN_FEEDFORMAT_DESC', 'Hier kann das Standard-Format der Feeds gewählt werden. Beide Formate werden heutzutage von den meisten Feedreader unterstützt.');
+@define('SYNDICATION_PLUGIN_COMMENTFEED', 'Kommentar-Feed');
+@define('SYNDICATION_PLUGIN_COMMENTFEED_DESC', 'Bindet einen zusätzlichen Link zum Kommentar-Feed ein. Dies ist meist eher für die Blog-Autoren interessant.');
+@define('SYNDICATION_PLUGIN_FEEDICON', 'Feed-Icon');
+@define('SYNDICATION_PLUGIN_FEEDICON_DESC', 'Zeigt ein (großes) Bild anstelle eines Textlinks an. Auf "none" stellen um dies zu deaktivieren oder auf "feedburner" stellen, wenn bei der Verwendung von FeedBurner dessen Symbol genutzt werden soll.');
+@define('SYNDICATION_PLUGIN_CUSTOMURL', 'Individuelle Feed-URL aktivieren?');
+@define('SYNDICATION_PLUGIN_CUSTOMURL_DESC', 'Falls der Link zu der individuellen Feed-URL der globalen Konfiguration führen soll, muss diese Option aktiviert werden.');
+@define('FEED_CUSTOM', 'Individuelle Feed-URL');
+@define('FEED_CUSTOM_DESC', 'Wenn gesetzt, wird die eingetragene URL verwendet um Feedreader dorthin weiterzuleiten. Dies ist hilfreich für Statistikdienste wie z.B. Feedburner, so dass hier die Feedburner-URL des eigenen Feeds hinterlegt werden kann.');
+@define('FEED_FORCE', 'Erzwingen der individuellen Feed-URL?');
+@define('FEED_FORCE_DESC', 'Wenn aktiviert, werden alle Feedreader automatisch zu der eingetragenen individuellen Feed-URL weitergeleitet.');
+@define('NO_UPDATES', 'Keine Plugin-Updates verfügbar.');
+@define('PLUGIN_GROUP_ALL', 'Alle Kategorien');
+@define('CONF_USE_AUTOSAVE', 'Automatische Speicherung aktivieren');
+@define('CONF_USE_AUTOSAVE_DESC', 'Wenn aktiviert, wird der Text von Blog-Einträgen regelmäßig automatisch im Session-Speicher des Browsers gesichert. Falls der Browser während des Schreibens abstürzt wird beim nächsten Erzeugen eines Eintrags der verlorene Text wiederhergestellt.');
+@define('INSTALL_CAT_FEEDS', 'Feed-Einstellungen');
+@define('USERCONF_USE_CORE_WYSIWYG_TOOLBAR', 'WYSIWYG-Buttonleiste');
+@define('USERCONF_USE_CORE_WYSIWYG_TOOLBAR_DESC', 'Hier kann die Menge der verfügbaren Buttons im WYSIWYG-Editor mittels einer Voreinstellung gewählt werden. Falls darüber hinaus eigene Anpassungen (mittels einer individuellen JavaScript-Konfigurationsdatei in templates/XXX/admin/ckeditor_custom_config.js) benötigt werden befinden sich Hinweise hierzu in den Dateien htmlarea/ckeditor_s9y_config.js und htmlarea/ckeditor_s9y_plugin.js.');
+@define('USERCONF_WYSIWYG_PRESET_S9Y', 'Serendipity (Standard)');
+@define('USERCONF_WYSIWYG_PRESET_BASIC', 'Reduziert');
+@define('USERCONF_WYSIWYG_PRESET_FULL', 'Vollständig');
+@define('USERCONF_WYSIWYG_PRESET_STANDARD', 'Alternative');
+@define('USERCONF_WYSIWYG_PRESET_CKE', 'CKEditor Vollständig');
+@define('USERCONF_WYSIWYG_PRESET_NOCC_S9Y', 'Erzwingen: Serendipity');
+@define('USERCONF_WYSIWYG_PRESET_NOCC_BASIC', 'Erzwingen: Reduziert');
+@define('USERCONF_WYSIWYG_PRESET_NOCC_FULL', 'Erzwingen: Vollständig');
+@define('USERCONF_WYSIWYG_PRESET_NOCC_STANDARD', 'Erzwingen: Alternative');
+@define('USERCONF_WYSIWYG_PRESET_NOCC_CKE', 'Erzwingen: CKEditor Vollständig');
+@define('CATEGORY_PLUGIN_SHOWALL', 'Zeige einen Link zu "Alle Kategorien"?');
+@define('CATEGORY_PLUGIN_SHOWALL', 'Falls aktiviert wird Besuchern ein Link angezeigt, das Blog ohne Einschränkung der Kategorien darzustellen.');
+@define('SERENDIPITY_PHPVERSION_FAIL', 'Serendipity benötigt eine PHP-Version >= %2$s - Sie benutzen eine ältere Version (%1$s) und müssen auf eine neuere upgraden. Die meisten Provider gestatten den Wechsel auf neuere PHP-Versionen über einen Schalter in der Admin-Oberfläche oder eine Anweisung in der .htaccess.');
+@define('TOGGLE_VIEW', 'Darstellung der Kategorien wechseln');
+@define('PUBLISH_NOW', 'Diesen Eintrag jetzt veröffentlichen (setzt aktuelle Zeit)');
+@define('EDITOR_TAGS', 'Tags');
+@define('EDITOR_NO_TAGS', 'Keine Tags');
+@define('DASHBOARD_ENTRIES', 'In Vorbereitung');
+@define('INSTALL_PASSWORD2', 'Admin-Passwort (erneut)');
+@define('INSTALL_PASSWORD2_DESC', 'Passwort für den Administrator-Zugang, nochmal zur Bestätigung eingeben.');
+@define('INSTALL_PASSWORD_INVALID', 'Die eingebenen Administrator-Passwörter stimmen nicht überein.');
+@define('INSTALL_BACKENDPOPUP_GRANULAR', 'Popups in speziellen Bereichen erzwingen');
+@define('INSTALL_BACKENDPOPUP_GRANULAR_DESC', 'Wenn Popups generell deaktiviert wurden, kann an speziellen Stellen dennoch der Einsatz von Popups forciert werden, indem die Liste jener Stellen hier aufgeführt wird (kommasepariert). Die vollständige Liste ist: ');
+@define('START_UPDATE', 'Starting Update ...');
+@define('UPDATE_ALL', 'Update All');
+@define('JS_FAILURE', 'The Serendipity JavaScript-library could not be loaded. This can happen due to PHP or Plugin errors, or even a malformed browser cache. To check the exact error please open <a href="%1$s">%1$s</a> manually in your browser and check for error messages.');
+@define('THEMES_PREVIEW_BLOG', 'See demo on blog.s9y.org');
+@define('SYNDICATION_PLUGIN_XML_DESC', 'Set to "none" if you only want to show a text link.');
+@define('MULTICHECK_NO_ITEM', 'No item selected, please check at least one. <a href="%s">Return to previous page</a>.');
+@define('MULTICHECK_NO_DIR', 'No directory selected, please choose one. <a href="%s">Return to previous page</a>.');
+@define('BULKMOVE_INFO', 'Bulk-move info');
+@define('BULKMOVE_INFO_DESC', 'You can select multiple files to bulk-move them to a new location. <strong>Note:</strong> This action cannot be undone, just like bulk-deletion of multiple files. All checked files will be physically moved, and referring blog entries are rewritten to point to the new location.');
+@define('FIRST_PAGE', 'First Page');
+@define('LAST_PAGE', 'Last Page');
+@define('MEDIA_PROPERTIES_DONE', 'Properties of #%d changed.');
+@define('DIRECTORY_INFO', 'Directory info');
+@define('DIRECTORY_INFO_DESC', 'Directories reflect their physical folder directory name. If you want to change or move directories which contain items, you have two choices. Either create the directory or subdirectory you want, then move the items to the new directory via the media library and afterwards, delete the empty old directory there. Or completely change the whole old directory via the edit directory button below and rename it to whatever you like (existing subdir/ + newname). This will move all directories and items and change referring blog entries.');
+@define('MEDIA_RESIZE_EXISTS', 'File dimensions already exist!');

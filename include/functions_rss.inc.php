@@ -1,4 +1,5 @@
-<?php # $entry['feed_id']: functions_entries.inc.php 435 2005-08-25 12:36:39Z garvinhicking $
+<?php
+# $entry['feed_id']: functions_entries.inc.php 435 2005-08-25 12:36:39Z garvinhicking $
 # Copyright (c) 2003-2005, Jannis Hermanns (on behalf the Serendipity Developer Team)
 # All rights reserved.  See LICENSE file for licensing details
 
@@ -22,7 +23,7 @@ if (defined('S9Y_FRAMEWORK_RSS')) {
  * @param   array       A superarray of entries to output
  * @param   string      The version/type of a RSS/Atom feed to display (atom1_0, rss2_0 etc)
  * @param   boolean     If true, this is a comments feed. If false, it's an Entry feed.
- * @param   boolean     Indicates if this feed is a fulltext feed (true) or only excercpt (false)
+ * @param   boolean     Indicates if this feed is a fulltext feed (true) or only excerpt (false)
  * @param   boolean     Indicates if E-Mail addresses should be shown (true) or hidden (false)
  * @return
  */
@@ -67,10 +68,10 @@ function serendipity_printEntries_rss(&$entries, $version, $comments = false, $f
 
             // Embed a link to extended entry, if existing
             if ($options['fullFeed']) {
-                $entry['body'] .= ' ' . $entry['extended'];
+                $entry['body'] .= "\n" . $entry['extended'];
                 $ext = '';
             } elseif ($entry['exflag']) {
-                $ext = '<br /><a href="' . $entry['feed_entryLink'] . '#extended">' . sprintf(VIEW_EXTENDED_ENTRY, htmlspecialchars($entry['title'])) . '</a>';
+                $ext = '<a class="block_level" href="' . $entry['feed_entryLink'] . '#extended">' . sprintf(VIEW_EXTENDED_ENTRY, serendipity_specialchars($entry['title'])) . '</a>';
             } else {
                 $ext = '';
             }
@@ -80,7 +81,14 @@ function serendipity_printEntries_rss(&$entries, $version, $comments = false, $f
 
             // Do some relative -> absolute URI replacing magic. Replaces all HREF/SRC (<a>, <img>, ...) references to only the serendipitypath with the full baseURL URI
             // garvin: Could impose some problems. Closely watch this one.
-            $entry['body'] = preg_replace('@(href|src)=("|\')(' . preg_quote($serendipity['serendipityHTTPPath']) . ')(.*)("|\')(.*)>@imsU', '\1=\2' . $serendipity['baseURL'] . '\4\2\6>', $entry['body']);
+            // onli: Did impose some problems, when having //-links to stuff. following pattern-selection tries to workaround that
+            if ($serendipity['serendipityHTTPPath'] == "/") {
+                $pattern = '@(href|src)=(["\'])/([^/][^"\']*)@imsU';
+            } else {
+                $pattern = '@(href|src)=(["\'])' . preg_quote($serendipity['serendipityHTTPPath']) . '([^"\']*)@imsU';
+            }
+            $entry['body'] = preg_replace($pattern, '\1=\2' . $serendipity['baseURL'] . '\3', $entry['body']);
+            //$entry['body'] = preg_replace('@(href|src)=("|\')(' . preg_quote($serendipity['serendipityHTTPPath']) . ')(.*)("|\')(.*)>@imsU', '\1=\2' . $serendipity['baseURL'] . '\4\2\6>', $entry['body']);
             // jbalcorn: clean up body for XML compliance as best we can.
             $entry['body'] = xhtml_cleanup($entry['body']);
 
@@ -96,24 +104,24 @@ function serendipity_printEntries_rss(&$entries, $version, $comments = false, $f
             if (!is_array($entry['categories'])) {
                 $entry['categories'] = array(0 => array(
                     'category_name'      => $entry['category_name'],
-                    'feed_category_name' => serendipity_utf8_encode(htmlspecialchars($entry['category_name'])),
+                    'feed_category_name' => serendipity_utf8_encode(serendipity_specialchars($entry['category_name'])),
                     'categoryURL'        => serendipity_categoryURL($entry, 'baseURL')
                 ));
             } else {
                 foreach($entry['categories'] AS $cid => $_cat) {
                     $cat = &$entry['categories'][$cid];
                     $cat['categoryURL']        = serendipity_categoryURL($cat, 'baseURL');
-                    $cat['feed_category_name'] = serendipity_utf8_encode(htmlspecialchars($cat['category_name']));
+                    $cat['feed_category_name'] = serendipity_utf8_encode(serendipity_specialchars($cat['category_name']));
                 }
             }
 
             // Prepare variables
-            // 1. UTF8 encoding + htmlspecialchars.
-            $entry['feed_title']     = serendipity_utf8_encode(htmlspecialchars($entry['title']));
-            $entry['feed_blogTitle'] = serendipity_utf8_encode(htmlspecialchars($serendipity['blogTitle']));
-            $entry['feed_title']     = serendipity_utf8_encode(htmlspecialchars($entry['title']));
-            $entry['feed_author']    = serendipity_utf8_encode(htmlspecialchars($entry['author']));
-            $entry['feed_email']     = serendipity_utf8_encode(htmlspecialchars($entry['email']));
+            // 1. UTF8 encoding + serendipity_specialchars.
+            $entry['feed_title']     = serendipity_utf8_encode(serendipity_specialchars($entry['title']));
+            $entry['feed_blogTitle'] = serendipity_utf8_encode(serendipity_specialchars($serendipity['blogTitle']));
+            $entry['feed_title']     = serendipity_utf8_encode(serendipity_specialchars($entry['title']));
+            $entry['feed_author']    = serendipity_utf8_encode(serendipity_specialchars($entry['author']));
+            $entry['feed_email']     = serendipity_utf8_encode(serendipity_specialchars($entry['email']));
 
             // 2. gmdate
             $entry['feed_timestamp']     = gmdate('Y-m-d\TH:i:s\Z', serendipity_serverOffsetHour($entry['timestamp']));
@@ -147,7 +155,7 @@ function serendipity_printEntries_rss(&$entries, $version, $comments = false, $f
                     break;
 
                 case 'atom1.0':
-                    $entry_hook     = 'frontend_display:atom-1.0:per_entry';
+                    $entry_hook = 'frontend_display:atom-1.0:per_entry';
                     break;
             }
 

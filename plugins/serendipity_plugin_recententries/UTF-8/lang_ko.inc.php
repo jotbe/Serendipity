@@ -1,13 +1,8 @@
-<?php #
+<?php
+# Translated by: Wesley Hwang-Chung <wesley96@gmail.com> 
+# (c) 2005 http://www.tool-box.info/
 
-/**
- *  @version  
- *  @file 
- *  @author Wesley Hwang-Chung <wesley96@gmail.com> (c) 2005 http://www.tool-box.info/
- *  EN-Revision: Revision of lang_en.inc.php
- */
-
- @define('PLUGIN_RECENTENTRIES_TITLE', '최근 글');
+@define('PLUGIN_RECENTENTRIES_TITLE', '최근 글');
 @define('PLUGIN_RECENTENTRIES_BLAHBLAH', '가장 최근에 적은 글의 제목과 날짜를 보여줌');
 @define('PLUGIN_RECENTENTRIES_NUMBER', '글의 수');
 @define('PLUGIN_RECENTENTRIES_NUMBER_BLAHBLAH', '몇 개의 글을 보여주겠습니까? (기본값: 10)');

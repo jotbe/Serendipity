@@ -251,7 +251,7 @@
         {if $admin_vars.admin_installed}
             {serendipity_hookPlugin hook="backend_footer" hookAll="true"}
         {/if}
-
+       
     </body>
 <!-- ADMIN-ENTRY TEMPLATE: index.tpl END -->
 </html>

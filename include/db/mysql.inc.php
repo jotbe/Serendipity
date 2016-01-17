@@ -1,4 +1,4 @@
-<?php # $Id$
+<?php
 # Copyright (c) 2003-2005, Jannis Hermanns (on behalf the Serendipity Developer Team)
 # All rights reserved.  See LICENSE file for licensing details
 
@@ -55,7 +55,7 @@ function serendipity_db_in_sql($col, &$search_ids, $type = ' OR ') {
  * @param   boolean     If true, errors will be reported. If false, errors will be ignored.
  * @param   string      A possible array key name, so that you can control the multi-dimensional mapping of an array by the key column
  * @param   string      A possible array field name, so that you can control the multi-dimensional mapping of an array by the key column and the field value.
- * @param   boolean     If true, the executed SQL error is known to fail, and should be disregarded (errors can be ignroed on DUPLICATE INDEX queries and the likes)
+ * @param   boolean     If true, the executed SQL error is known to fail, and should be disregarded (errors can be ignored on DUPLICATE INDEX queries and the likes)
  * @return  mixed       Returns the result of the SQL query, depending on the input parameters
  */
 function &serendipity_db_query($sql, $single = false, $result_type = "both", $reportErr = false, $assocKey = false, $assocVal = false, $expectError = false) {
@@ -96,13 +96,13 @@ function &serendipity_db_query($sql, $single = false, $result_type = "both", $re
     }
 
     if (!$expectError && mysql_error($serendipity['dbConn']) != '') {
-        $msg = '<pre>' . htmlspecialchars($sql) . '</pre> / ' . htmlspecialchars(mysql_error($serendipity['dbConn']));
+        $msg = '<pre>' . serendipity_specialchars($sql) . '</pre> / ' . serendipity_specialchars(mysql_error($serendipity['dbConn']));
         return $msg;
     }
 
     if (!$c) {
         if (!$expectError && !$serendipity['production']) {
-            print '<pre>' . htmlspecialchars($sql) . '</pre> / ' . htmlspecialchars(mysql_error($serendipity['dbConn']));
+            print '<pre>' . serendipity_specialchars($sql) . '</pre> / ' . serendipity_specialchars(mysql_error($serendipity['dbConn']));
             if (function_exists('debug_backtrace') && $reportErr == true) {
                 highlight_string(var_export(debug_backtrace(), 1));
             }
@@ -279,7 +279,7 @@ function serendipity_db_reconnect() {
 
     if (isset($serendipity['dbCharset'])) {
         mysql_query("SET NAMES " . $serendipity['dbCharset'], $serendipity['dbConn']);
-        define('SQL_CHARSET_INIT', true);
+        @define('SQL_CHARSET_INIT', true);
     } elseif (defined('SQL_CHARSET') && $serendipity['dbNames'] && !defined('SQL_CHARSET_INIT')) {
         mysql_query("SET NAMES " . SQL_CHARSET, $serendipity['dbConn']);
     }
@@ -340,7 +340,7 @@ function serendipity_db_probe($hash, &$errs) {
 
     if (!($c = @mysql_connect($hash['dbHost'], $hash['dbUser'], $hash['dbPass']))) {
         $errs[] = 'Could not connect to database; check your settings.';
-        $errs[] = 'The mySQL error was: ' . htmlspecialchars(mysql_error());
+        $errs[] = 'The mySQL error was: ' . serendipity_specialchars(mysql_error());
         return false;
     }
 
@@ -348,7 +348,7 @@ function serendipity_db_probe($hash, &$errs) {
 
     if (!@mysql_select_db($hash['dbName'])) {
         $errs[] = 'The database you specified does not exist.';
-        $errs[] = 'The mySQL error was: ' . htmlspecialchars(mysql_error());
+        $errs[] = 'The mySQL error was: ' . serendipity_specialchars(mysql_error());
         return false;
     }
 

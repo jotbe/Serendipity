@@ -1,4 +1,4 @@
-<?php # $Id: b2evolution.inc.php 1093 2006-04-13 10:49:52Z garvinhicking $
+<?php
 # Copyright (c) 2003-2005, Jannis Hermanns (on behalf the Serendipity Developer Team)
 # All rights reserved.  See LICENSE file for licensing details
 
@@ -106,14 +106,14 @@ class Serendipity_Import_Serendipity extends Serendipity_Import {
         }
 
         $res = $this->nativeQuery("SELECT * FROM {$this->data['prefix']}" . $table . " " . $where, $s9ydb);
-        echo mysql_error($s9ydb);
+        echo mysqli_error($s9ydb);
 
-        if (!$res || mysql_num_rows($res) < 1) {
+        if (!$res || mysqli_num_rows($res) < 1) {
             return false;
         }
         $this->counter = 100;
 
-        while ($row = mysql_fetch_array($res, MYSQL_ASSOC)) {
+        while ($row = mysqli_fetch_array($res, MYSQLI_ASSOC)) {
             $this->counter++;
             if (is_array($primary_keys)) {
                 foreach($primary_keys AS $primary_key) {
@@ -191,9 +191,11 @@ class Serendipity_Import_Serendipity extends Serendipity_Import {
                     }
                 }
 
-                foreach($this->storage[$table] AS $primary_key => $primary_data) {
-                    foreach($primary_data AS $primary_val => $replace_val) {
-                        serendipity_set_config_var('import_s9y_' . $table . '_' . $primary_key . '_' . $primary_val, $replace_val, 99);
+                if (is_array($this->storage[$table]) && !empty($this->storage[$table])) {
+                    foreach($this->storage[$table] AS $primary_key => $primary_data) {
+                        foreach($primary_data AS $primary_val => $replace_val) {
+                            serendipity_set_config_var('import_s9y_' . $table . '_' . $primary_key . '_' . $primary_val, $replace_val, 99);
+                        }
                     }
                 }
             } else {
@@ -219,18 +221,18 @@ class Serendipity_Import_Serendipity extends Serendipity_Import {
         $this->import_table(
             $s9ydb,
             'groups',
-            array('id'), 
+            array('id'),
             null,
             'name',
             false
         );
 
         $this->import_table(
-            $s9ydb, 
-            'groupconfig', 
+            $s9ydb,
+            'groupconfig',
             array('id'),
-            null, 
-            false, 
+            null,
+            false,
             array('id' => array('groups' => 'id')),
             true
         );
@@ -240,17 +242,17 @@ class Serendipity_Import_Serendipity extends Serendipity_Import {
         global $serendipity;
 
         $this->import_table(
-            $s9ydb, 
-            'authors', 
-            array('authorid'), 
-            null, 
+            $s9ydb,
+            'authors',
+            array('authorid'),
+            null,
             'username',
             false
         );
 
         $this->import_table(
-            $s9ydb, 
-            'authorgroups', 
+            $s9ydb,
+            'authorgroups',
             false,
             null,
             false,
@@ -259,8 +261,8 @@ class Serendipity_Import_Serendipity extends Serendipity_Import {
         );
 
         $this->import_table(
-            $s9ydb, 
-            'config', 
+            $s9ydb,
+            'config',
             false,
             ' WHERE authorid > 0',
             false,
@@ -268,8 +270,8 @@ class Serendipity_Import_Serendipity extends Serendipity_Import {
         );
 
         $this->import_table(
-            $s9ydb, 
-            'permalinks', 
+            $s9ydb,
+            'permalinks',
             false,
             ' WHERE type = "author" ',
             false,
@@ -281,8 +283,8 @@ class Serendipity_Import_Serendipity extends Serendipity_Import {
         global $serendipity;
 
         $this->import_table(
-            $s9ydb, 
-            'entries', 
+            $s9ydb,
+            'entries',
             array('id'),
             null,
             false,
@@ -290,8 +292,8 @@ class Serendipity_Import_Serendipity extends Serendipity_Import {
         );
 
         $this->import_table(
-            $s9ydb, 
-            'comments', 
+            $s9ydb,
+            'comments',
             array('id'),
             'ORDER BY parent_id ASC',
             false,
@@ -300,8 +302,8 @@ class Serendipity_Import_Serendipity extends Serendipity_Import {
         );
 
         $this->import_table(
-            $s9ydb, 
-            'entryproperties', 
+            $s9ydb,
+            'entryproperties',
             false,
             null,
             false,
@@ -309,8 +311,8 @@ class Serendipity_Import_Serendipity extends Serendipity_Import {
         );
 
         $this->import_table(
-            $s9ydb, 
-            'references', 
+            $s9ydb,
+            'references',
             array('id'),
             null,
             false,
@@ -318,8 +320,8 @@ class Serendipity_Import_Serendipity extends Serendipity_Import {
         );
 
         $this->import_table(
-            $s9ydb, 
-            'exits', 
+            $s9ydb,
+            'exits',
             false,
             null,
             false,
@@ -327,8 +329,8 @@ class Serendipity_Import_Serendipity extends Serendipity_Import {
         );
 
         $this->import_table(
-            $s9ydb, 
-            'referrers', 
+            $s9ydb,
+            'referrers',
             false,
             null,
             false,
@@ -336,8 +338,8 @@ class Serendipity_Import_Serendipity extends Serendipity_Import {
         );
 
         $this->import_table(
-            $s9ydb, 
-            'permalinks', 
+            $s9ydb,
+            'permalinks',
             false,
             ' WHERE type = "entry" ',
             false,
@@ -349,8 +351,8 @@ class Serendipity_Import_Serendipity extends Serendipity_Import {
         global $serendipity;
 
         $this->import_table(
-            $s9ydb, 
-            'images', 
+            $s9ydb,
+            'images',
             array('id'),
             null,
             false,
@@ -358,8 +360,8 @@ class Serendipity_Import_Serendipity extends Serendipity_Import {
         );
 
         $this->import_table(
-            $s9ydb, 
-            'mediaproperties', 
+            $s9ydb,
+            'mediaproperties',
             false,
             null,
             false,
@@ -367,8 +369,8 @@ class Serendipity_Import_Serendipity extends Serendipity_Import {
         );
 
         $this->import_table(
-            $s9ydb, 
-            'access', 
+            $s9ydb,
+            'access',
             false,
             ' WHERE artifact_type = "directory" ',
             false,
@@ -381,8 +383,8 @@ class Serendipity_Import_Serendipity extends Serendipity_Import {
         global $serendipity;
 
         $this->import_table(
-            $s9ydb, 
-            'category', 
+            $s9ydb,
+            'category',
             array('categoryid'),
             ' ORDER BY parentid ASC',
             false,
@@ -391,8 +393,8 @@ class Serendipity_Import_Serendipity extends Serendipity_Import {
         );
 
         $this->import_table(
-            $s9ydb, 
-            'entrycat', 
+            $s9ydb,
+            'entrycat',
             false,
             null,
             false,
@@ -401,8 +403,8 @@ class Serendipity_Import_Serendipity extends Serendipity_Import {
         );
 
         $this->import_table(
-            $s9ydb, 
-            'permalinks', 
+            $s9ydb,
+            'permalinks',
             false,
             ' WHERE type = "category" ',
             false,
@@ -410,8 +412,8 @@ class Serendipity_Import_Serendipity extends Serendipity_Import {
         );
 
         $this->import_table(
-            $s9ydb, 
-            'access', 
+            $s9ydb,
+            'access',
             false,
             ' WHERE artifact_type = "category" ',
             false,
@@ -442,17 +444,17 @@ class Serendipity_Import_Serendipity extends Serendipity_Import {
         $users = array();
         $entries = array();
 
-        if (!extension_loaded('mysql')) {
+        if (!extension_loaded('mysqli')) {
             return MYSQL_REQUIRED;
         }
 
-        $s9ydb = @mysql_connect($this->data['host'], $this->data['user'], $this->data['pass']);
-        if (!$s9ydb) {
-            return sprintf(COULDNT_CONNECT, htmlspecialchars($this->data['host']));
+        $s9ydb = @mysqli_connect($this->data['host'], $this->data['user'], $this->data['pass']);
+        if (!$s9ydb || mysqli_connect_error()) {
+            return sprintf(COULDNT_CONNECT, serendipity_specialchars($this->data['host']));
         }
 
-        if (!@mysql_select_db($this->data['name'])) {
-            return sprintf(COULDNT_SELECT_DB, mysql_error($s9ydb));
+        if (!@mysqli_select_db($s9ydb, $this->data['name'])) {
+            return sprintf(COULDNT_SELECT_DB, mysqli_error($s9ydb));
         }
 
         if (!is_array($this->data['targets'])) {

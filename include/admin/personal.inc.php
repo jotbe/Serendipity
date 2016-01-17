@@ -1,4 +1,4 @@
-<?php # $Id$
+<?php
 # Copyright (c) 2003-2005, Jannis Hermanns (on behalf the Serendipity Developer Team)
 # All rights reserved.  See LICENSE file for licensing details
 
@@ -18,9 +18,23 @@ if ($serendipity['GET']['adminAction'] == 'save' && serendipity_checkFormToken()
           && (int)$_POST['userlevel'] > $serendipity['serendipityUserlevel']) {
         echo '<div class="serendipityAdminMsgError"><img style="width: 22px; height: 22px; border: 0px; padding-right: 4px; vertical-align: middle" src="' . serendipity_getTemplateFile('admin/img/admin_msg_error.png') . '" alt="" />' . CREATE_NOT_AUTHORIZED_USERLEVEL . '</div>';
     } elseif (empty($_POST['username'])) {
-        echo '<div class="serendipityAdminMsgError"><img style="width: 22px; height: 22px; border: 0px; padding-right: 4px; vertical-align: middle" src="' . serendipity_getTemplateFile('admin/img/admin_msg_error.png') . '" alt="" />' . USERCONF_CHECK_USERNAME_ERROR . '</div>';
-    } elseif (!empty($_POST['password']) && $_POST['check_password'] != $_SESSION['serendipityPassword'] && serendipity_passwordhash($_POST['check_password']) != $_SESSION['serendipityPassword']) {
-        echo '<div class="serendipityAdminMsgError"><img style="width: 22px; height: 22px; border: 0px; padding-right: 4px; vertical-align: middle" src="' . serendipity_getTemplateFile('admin/img/admin_msg_error.png') . '" alt="" />' . USERCONF_CHECK_PASSWORD_ERROR . '</div>';
+        $data['empty_username'] = true;
+    } elseif (  (!empty($_POST['password'])
+                    &&
+                !empty($_POST['check_password'])
+                    &&
+                $_POST['check_password'] != $_SESSION['serendipityPassword']
+                    &&
+                serendipity_passwordhash($_POST['check_password']) != $_SESSION['serendipityPassword'])
+                ||
+                (!empty($_POST['password'])
+                    &&
+                empty($_POST['check_password'])
+                    &&
+                $_POST['password'] != $_SESSION['serendipityPassword']
+                    &&
+                serendipity_passwordhash($_POST['password']) != $_SESSION['serendipityPassword']) ) {
+         $data['password_check_fail'] = true;
     } else {
         $valid_groups = serendipity_getGroups($serendipity['authorid'], true);
 
@@ -93,26 +107,25 @@ if ($serendipity['GET']['adminAction'] == 'save' && serendipity_checkFormToken()
             }
         }
         $from = $_POST;
-?>
-    <div class="serendipityAdminMsgSuccess"><img width="22px" height="22px" style="border: 0px; padding-right: 4px; vertical-align: middle" src="<?php echo serendipity_getTemplateFile('admin/img/admin_msg_success.png'); ?>" alt="" /><?php echo sprintf(MODIFIED_USER, htmlspecialchars($_POST['realname'])) ?></div>
-<?php }
-} ?>
+    }
+}
 
-<form action="?serendipity[adminModule]=personal&amp;serendipity[adminAction]=save" method="post">
-<?php
-echo serendipity_setFormToken();
+$data['formToken'] = serendipity_setFormToken();
 $template       = serendipity_parseTemplate(S9Y_CONFIG_USERTEMPLATE);
 $user           = serendipity_fetchUsers($serendipity['authorid']);
 $from           = $user[0];
 $from['groups'] = serendipity_getGroups($serendipity['authorid']);
 unset($from['password']);
-serendipity_printConfigTemplate($template, $from, true, false);
-?>
-    <div align="right"><input class="serendipityPrettyButton input_button" type="submit" name="SAVE"   value="<?php echo SAVE; ?>" /></div>
-</form>
+$data['config'] = serendipity_printConfigTemplate($template, $from, true, false);
 
-<?php
 
 $add = array('internal' => true);
 serendipity_plugin_api::hook_event('backend_sidebar_entries_event_display_profiles', $from, $add);
+
+if (!is_object($serendipity['smarty'])) {
+    serendipity_smarty_init();
+}
+
+echo serendipity_smarty_show('admin/personal.inc.tpl', $data);
+
 /* vim: set sts=4 ts=4 expandtab : */

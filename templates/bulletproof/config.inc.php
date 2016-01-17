@@ -16,7 +16,7 @@ $serendipity['smarty']->assign(array('currpage2'=> $_SERVER['REQUEST_URI']));
 
 function serendipity_plugin_api_event_hook($event, &$bag, &$eventData, $addData = null) {
     global $serendipity;
-    
+
     switch($event) {
         case 'frontend_footer':
             echo '<!--PLUGIN API-->';
@@ -37,23 +37,23 @@ if ($serendipity['GET']['adminModule'] == 'templates' || $serendipity['POST']['a
 }
 
 $template_config_groups = array(
-    THEME_COLORSET  => array('colorset', 'userstylesheet', 'layouttype', 'jscolumns'),
+    THEME_COLORSET  => array('colorset', 'layouttype', 'jscolumns'),
     THEME_HEADER    => array('custheader', 'headerimage', 'headertype')
 );
 
 $template_config = array(
+    array(
+      'var'           => 'infobp',
+      'name'          => 'infobp',
+      'type'          => 'custom',
+      'custom'        => USER_STYLESHEET,
+    ),
     array(
         'var'           => 'colorset',
         'name'          => THEME_COLORSET,
         'type'          => 'select',
         'default'       => 'default',
         'select_values' => $colorsets
-    ),
-    array(
-        'var'           => 'userstylesheet',
-        'name'          => USER_STYLESHEET,
-        'type'          => 'boolean',
-        'default'       => 'false',
     ),
     array(
         'var'           => 'layouttype',
@@ -300,7 +300,7 @@ if ($template_loaded_config['headerimage'] != '' && is_dir($_SERVER['DOCUMENT_RO
             }
         }
     }
-    
+
     if (count($files) > 0) {
         shuffle($files);
         $serendipity['smarty']->assign('random_headerimage', $template_loaded_config['headerimage'] . '/' . $files[0]);
@@ -312,9 +312,9 @@ $colorset_data = array();  // Maybe we'll want more data later...
 $colorset_data['attribution'] = '';
 $attribution_file = dirname(__FILE__) . '/' . $template_loaded_config['colorset'] . '_license.txt';
 if (is_readable($attribution_file)) {
-    $attribution = file_get_contents($attribution_file);
-    if (!empty($attribution)) {
-        $colorset_data['attribution'] = $attribution;
-    }
+	$attribution = file_get_contents($attribution_file);
+	if (!empty($attribution)) {
+		$colorset_data['attribution'] = $attribution;
+	}
 }
 $template_loaded_config['colorset_data'] = $colorset_data;

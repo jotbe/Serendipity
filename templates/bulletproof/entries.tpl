@@ -12,7 +12,7 @@
     {/if}
 
     {foreach from=$dategroup.entries item="entry"}
-        {assign var="entry" value=$entry scope="parent"}
+    {assign var="entry" value=$entry scope="parent"}
         <h4 class="entry-title serendipity_title"><a href="{$entry.link}" rel="bookmark">{$entry.title}</a></h4>
 
         <div class="serendipity_entry serendipity_entry_author_{$entry.author|@makeFilename} {if $entry.is_entry_owner}serendipity_entry_author_self{/if}">
@@ -348,10 +348,10 @@
                     <div class="serendipity_center serendipity_msg_important">{$message}</div>
                 {/foreach}
 
-                {if $is_comment_added}
-                    <div class="serendipity_center serendipity_msg_notice">{$CONST.COMMENT_ADDED}</div>
-                {elseif $is_comment_moderate}
+                {if $is_comment_moderate}
                     <div class="serendipity_center serendipity_msg_notice">{$CONST.COMMENT_ADDED}<br />{$CONST.THIS_COMMENT_NEEDS_REVIEW}</div>
+                {elseif $is_comment_added}
+                    <div class="serendipity_center serendipity_msg_notice">{$CONST.COMMENT_ADDED}</div>
                 {elseif not $entry.allow_comments}
                     <div class="serendipity_center serendipity_msg_important">{$CONST.COMMENTS_CLOSED}</div>
                 {else}

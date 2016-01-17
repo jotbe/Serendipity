@@ -1,4 +1,4 @@
-<?php # $Id$
+<?php
 # Copyright (c) 2003-2005, Jannis Hermanns (on behalf the Serendipity Developer Team)
 # All rights reserved.  See LICENSE file for licensing details
 
@@ -7,10 +7,12 @@ if (defined('S9Y_FRAMEWORK')) {
 }
 
 @define('S9Y_FRAMEWORK', true);
-
-if (!headers_sent()) {
+if (!headers_sent() && php_sapi_name() !== 'cli') {
     // Only set the session name, if no session has yet been issued.
     if (session_id() == '') {
+        $cookieParams = session_get_cookie_params();
+        $cookieParams['secure'] = (isset($_SERVER['HTTPS']) && strtolower($_SERVER['HTTPS']) == 'on' ? true : false);
+        session_set_cookie_params($cookieParams['lifetime'], $cookieParams['path'], $cookieParams['domain'], $cookieParams['secure'], $cookieParams['httponly']);
         session_name('s9y_' . md5(dirname(__FILE__)));
         session_start();
     }
@@ -41,20 +43,20 @@ if (!defined('IN_serendipity')) {
 
 include(S9Y_INCLUDE_PATH . 'include/compat.inc.php');
 if (defined('USE_MEMSNAP')) {
-    memSnap('Framework init');
+    echo memSnap('Framework init');
 }
 
 // The version string
-$serendipity['version']         = '1.7.8';
+$serendipity['version'] = '2.1-alpha3';
 
-// Setting this to 'false' will enable debugging output. All alpa/beta/cvs snapshot versions will emit debug information by default. To increase the debug level (to enable Smarty debugging), set this flag to 'debug'.
+
+// Setting this to 'false' will enable debugging output. All alpha/beta/cvs snapshot versions will emit debug information by default. To increase the debug level (to enable Smarty debugging), set this flag to 'debug'.
 if (!isset($serendipity['production'])) {
-    $serendipity['production']      = (preg_match('@\-(alpha|beta|cvs|rc)@', $serendipity['version']) ? false : true);
+    $serendipity['production'] = ! preg_match('@\-(alpha|beta|cvs|rc).*@', $serendipity['version']);
 }
 
 // Set error reporting
-// TODO: E_STRICT throws problematic errors due to "hook_event" being a static function, but all of our plugins don't really define that...
-error_reporting(E_ALL & ~(E_STRICT|E_NOTICE));
+error_reporting(E_ALL & ~(E_NOTICE|E_STRICT|E_DEPRECATED)); // is 22519 with 5.4+
 
 if ($serendipity['production'] !== true) {
     @ini_set('display_errors', 'on');
@@ -64,12 +66,11 @@ if ($serendipity['production'] !== true) {
 // The serendipity errorhandler string
 $serendipity['errorhandler'] = 'errorToExceptionHandler';
 
-
 // Default rewrite method
-$serendipity['rewrite']         = 'none';
+$serendipity['rewrite'] = 'none';
 
 // Message container
-$serendipity['messagestack']    = array();
+$serendipity['messagestack'] = array();
 
 // Can the user change the date of publishing for an entry?
 $serendipity['allowDateManipulation'] = true;
@@ -77,14 +78,14 @@ $serendipity['allowDateManipulation'] = true;
 // How much time is allowed to pass since the publising of an entry, so that a comment to that entry
 // will update it's LastModified stamp? If the time is passed, a comment to an old entry will no longer
 // push an article as being updated.
-$serendipity['max_last_modified']    = 60 * 60 * 24 * 7;
+$serendipity['max_last_modified'] = 60 * 60 * 24 * 7;
 
 // Clients can send a If-Modified Header to the RSS Feed (Conditional Get) and receive all articles beyond
 // that date. However it is still limited by the number below of maximum entries
-$serendipity['max_fetch_limit']      = 50;
+$serendipity['max_fetch_limit'] = 50;
 
 // How many bytes are allowed for fetching trackbacks, so that no binary files get accidently trackbacked?
-$serendipity['trackback_filelimit']  = 150 * 1024;
+$serendipity['trackback_filelimit'] = 150 * 1024;
 
 if (!isset($serendipity['fetchLimit'])) {
     $serendipity['fetchLimit'] = 15;
@@ -114,16 +115,27 @@ if (!isset($serendipity['expose_s9y'])) {
     $serendipity['expose_s9y'] = true;
 }
 
+// If set to true (in serendipity_config_local.inc.php) this prevents using imap_8bit
+// functions to send a mail, and use base64 encoding instead
+if (!isset($serendipity['forceBase64'])) {
+    $serendipity['forceBase64'] = false; 
+}
+
 // Should IFRAMEs be used for previewing entries and sending trackbacks?
 $serendipity['use_iframe'] = true;
 
-/* Default language for autodetection */
+// Default language for autodetection
 $serendipity['autolang'] = 'en';
 
-/* Name of folder for the default theme */
-$serendipity['defaultTemplate'] = 'bulletproof';
+// Name of folder for the default theme
+$serendipity['defaultTemplate'] = '2k11';
 
-/* Availiable languages */
+// Default backend theme
+if (!isset($serendipity['template_backend'])) {
+    $serendipity['template_backend'] = '2k11';
+}
+
+// Available languages
 if (!isset($serendipity['languages'])) {
     $serendipity['languages'] = array('en' => 'English',
                                   'de' => 'German',
@@ -158,12 +170,10 @@ if (!isset($serendipity['languages'])) {
                                   'ta' => 'Tamil');
 }
 
-/* Available Calendars */
+// Available Calendars
 $serendipity['calendars'] = array('gregorian'   => 'Gregorian',
                                   'persian-utf8' => 'Persian (utf8)');
-/*
- *   Load main language file
- */
+// Load main language file
 include($serendipity['serendipityPath'] . 'include/lang.inc.php');
 
 $serendipity['charsets'] = array(
@@ -179,9 +189,14 @@ $serendipity['charsets'] = array(
 @define('VIEWMODE_THREADED', 'threaded');
 @define('VIEWMODE_LINEAR', 'linear');
 
-/*
- *   Kill the script if we are not installed, and not inside the installer
- */
+if (!version_compare(phpversion(), '5.3', '>=')) {
+    $serendipity['lang'] = 'en';
+    include(S9Y_INCLUDE_PATH . 'include/lang.inc.php');
+    serendipity_die(sprintf(SERENDIPITY_PHPVERSION_FAIL, phpversion(), '5.3'));
+}
+
+
+// Kill the script if we are not installed, and not inside the installer
 if ( !defined('IN_installer') && IS_installed === false ) {
     header('Status: 302 Found');
     header('X-RequireInstall: 1');
@@ -189,14 +204,16 @@ if ( !defined('IN_installer') && IS_installed === false ) {
     serendipity_die(sprintf(SERENDIPITY_NOT_INSTALLED, 'serendipity_admin.php'));
 }
 
-/* Do the PEAR dance. If $serendipity['use_PEAR'] is set to FALSE, Serendipity will first put its own PEAR include path.
-   By default, a local PEAR will be used. */
+// Do the PEAR dance. If $serendipity['use_PEAR'] is set to FALSE, Serendipity will first put its own PEAR include path.
+// By default, a local PEAR will be used.
 if (function_exists('get_include_path')) {
     $old_include = @get_include_path();
 } else {
     $old_include = @ini_get('include_path');
 }
 
+
+require_once("bundled-libs/autoload.php");
 
 $new_include = ($serendipity['use_PEAR'] ? $old_include . PATH_SEPARATOR : '')
              . S9Y_INCLUDE_PATH . 'bundled-libs/' . PATH_SEPARATOR
@@ -210,14 +227,14 @@ if (function_exists('set_include_path')) {
     $use_include = @ini_set('include_path', $new_include);
 }
 
-if ($use_include !== $false && $use_include == $new_include) {
-    @define('S9Y_PEAR',      true);
+if ($use_include !== false && $use_include == $new_include) {
+    @define('S9Y_PEAR', true);
     @define('S9Y_PEAR_PATH', '');
 } else {
     @define('S9Y_PEAR', false);
     @define('S9Y_PEAR_PATH', S9Y_INCLUDE_PATH . 'bundled-libs/');
 }
-/* PEAR path setup inclusion finished */
+// PEAR path setup inclusion finished
 
 if (defined('IN_installer') && IS_installed === false) {
     $serendipity['lang'] = $serendipity['autolang'];
@@ -254,26 +271,36 @@ if (!is_readable($local_config)) {
 include($local_config);
 
 if ($serendipity['production'] === 'debug') {
-    error_reporting(E_ALL &~E_NOTICE | E_STRICT);
+    error_reporting(E_ALL ^ E_NOTICE); // is 32759 with 5.4+
+}
+if ($serendipity['production'] === false) {
+    error_reporting(E_ALL & ~(E_NOTICE|E_STRICT)); // is 30711 with 5.4+
 }
 
-//[internal callback function]: errorToExceptionHandler()
-if(is_callable($serendipity['errorhandler'], false, $callable_name)) {
+$errLevel = error_reporting();
+
+/* debug make correct error levels readable
+echo $errLevel."<br>\n";
+for ($i = 0; $i < 15;  $i++ ) {
+    print debug_ErrorLevelType($errLevel & pow(2, $i)) . "<br>\n";
+}
+*/
+
+// [internal callback function]: errorToExceptionHandler()
+if (is_callable($serendipity['errorhandler'], false, $callable_name)) {
     // set serendipity global error to exeption handler
     if ($serendipity['production'] === 'debug') {
-        set_error_handler($serendipity['errorhandler'], error_reporting()); // Yes, DEBUG mode should actually report E_STRICT errors! In PHP 5.4s is contained in E_ALL already, but not in PHP 5.2.
+        set_error_handler($serendipity['errorhandler'], $errLevel); // Yes, DEBUG mode should actually report E_STRICT errors! In PHP 5.4+ contained in E_ALL already
+    } elseif ($serendipity['production'] === false) {
+        set_error_handler($serendipity['errorhandler'], $errLevel); // most E_STRICT errors are thrown during the page's compilation process and can not be suppressed here.
     } else {
-    // Caution! If we want to have the same noshow effect as upper set error_reporting(E_ALL) in 'debug' mode, 
-    // do not clone it to set_error_handler(E_ALL), else everythimg is haltet to debug, which makes using debug obsolet.
-        set_error_handler($serendipity['errorhandler'], E_ALL & ~(E_NOTICE|E_STRICT));
+        set_error_handler($serendipity['errorhandler'], $errLevel); // different, see ln 56
     }
 }
 
 define('IS_up2date', version_compare($serendipity['version'], $serendipity['versionInstalled'], '<='));
 
-/*
- *  Include main functions
- */
+// Include main functions
 include(S9Y_INCLUDE_PATH . 'include/functions.inc.php');
 
 if (serendipity_FUNCTIONS_LOADED !== true) {
@@ -282,35 +309,32 @@ if (serendipity_FUNCTIONS_LOADED !== true) {
     serendipity_die(sprintf(INCLUDE_ERROR . '<br />' . FILE_CREATE_YOURSELF, 'include/functions.inc.php'));
 }
 
-/*
- *   Attempt to connect to the database
- */
+// Attempt to connect to the database
 if (!serendipity_db_connect()) {
     $serendipity['lang'] = 'en';
     include(S9Y_INCLUDE_PATH . 'include/lang.inc.php');
+    if (is_object($serendipity['logger'])) $serendipity['logger']->critical(DATABASE_ERROR);
     serendipity_die(DATABASE_ERROR);
 }
 
-/*
- *   Load Configuration options from the database
- */
+// Load Configuration options from the database
 
 if (defined('USE_MEMSNAP')) {
-    memSnap('Framework init');
+    echo memSnap('Framework init');
 }
 
 serendipity_load_configuration();
 $serendipity['lang'] = serendipity_getSessionLanguage();
 
+serendipity_initLog();
+
 if ( (isset($serendipity['autodetect_baseURL']) && serendipity_db_bool($serendipity['autodetect_baseURL'])) ||
      (isset($serendipity['embed']) && serendipity_db_bool($serendipity['embed'])) ) {
     $serendipity['baseURL'] = 'http' . (isset($_SERVER['HTTPS']) && strtolower($_SERVER['HTTPS']) == 'on' ? 's' : '') . '://' . $_SERVER['HTTP_HOST'] . (!strstr($_SERVER['HTTP_HOST'], ':') && !empty($_SERVER['SERVER_PORT']) && $_SERVER['SERVER_PORT'] != '80' && $_SERVER['SERVER_PORT'] != '443' ? ':' . $_SERVER['SERVER_PORT'] : '') . $serendipity['serendipityHTTPPath'];
 }
-/*
- * If a user is logged in, fetch his preferences. He possibly wants to have a different language
- */
 
-if (IS_installed === true) {
+// If a user is logged in, fetch his preferences. He possibly wants to have a different language
+if (IS_installed === true && php_sapi_name() !== 'cli') {
     // Import HTTP auth (mostly used for RSS feeds)
     if ($serendipity['useHTTP-Auth'] && (isset($_REQUEST['http_auth']) || isset($_SERVER['PHP_AUTH_USER']))) {
         if (!isset($_SERVER['PHP_AUTH_USER'])) {
@@ -345,28 +369,22 @@ if (empty($serendipity['serendipityHTTPPath'])) {
     $serendipity['serendipityHTTPPath'] = '/';
 }
 
-/* Changing this is NOT recommended, rewrite rules does not take them into account - yet */
+// Changing this is NOT recommended, rewrite rules does not take them into account - yet
 serendipity_initPermalinks();
 
 // Apply constants/definitions from custom permalinks
 serendipity_permalinkPatterns();
 
-/*
- *   Load main language file again, because now we have the preferred language
- */
+// Load main language file again, because now we have the preferred language
 include(S9Y_INCLUDE_PATH . 'include/lang.inc.php');
 
-/*
- * Reset charset definition now that final language is known
- */
+// Reset charset definition now that final language is known
 $serendipity['charsets'] = array(
     'UTF-8/' => 'UTF-8',
     ''        => CHARSET_NATIVE
 );
 
-/*
- *   Set current locale, if any has been defined
- */
+// Set current locale, if any has been defined
 if (defined('DATE_LOCALES')) {
     $locales = explode(',', DATE_LOCALES);
     foreach ($locales as $locale) {
@@ -381,28 +399,24 @@ if (function_exists('date_default_timezone_set')) {
         date_default_timezone_set('UTC');
     }
 }
-/*
- *   Fallback charset, if none is defined in the language files
- */
+
+// Fallback charset, if none is defined in the language files
 @define('LANG_CHARSET', 'ISO-8859-1');
 
-/*
- *  Create array of permission levels, with descriptions
- */
+// Create array of permission levels, with descriptions
 $serendipity['permissionLevels'] = array(USERLEVEL_EDITOR => USERLEVEL_EDITOR_DESC,
                                          USERLEVEL_CHIEF => USERLEVEL_CHIEF_DESC,
                                          USERLEVEL_ADMIN => USERLEVEL_ADMIN_DESC);
 
-/*
- *  Check if the installed version is higher than the version of the config
- */
-
+// Redirect to the upgrader
 if (IS_up2date === false && !defined('IN_upgrader')) {
     if (preg_match(PAT_CSS, $_SERVER['REQUEST_URI'], $matches)) {
         $css_mode = 'serendipity_admin.css';
         return 1;
     }
-
+    if (preg_match('@/(serendipity_editor\.js$)@', $_SERVER['REQUEST_URI'], $matches)) {
+        return 1;
+    }
     serendipity_die(sprintf(SERENDIPITY_NEEDS_UPGRADE, $serendipity['versionInstalled'], $serendipity['version'], $serendipity['serendipityHTTPPath'] . 'serendipity_admin.php'));
 }
 
@@ -413,6 +427,11 @@ if (!isset($serendipity['GET']['action'])) {
 
 if (!isset($serendipity['GET']['adminAction'])) {
     $serendipity['GET']['adminAction'] = (isset($serendipity['POST']['adminAction']) ? $serendipity['POST']['adminAction'] : '');
+}
+
+// Make sure this variable is always properly sanitized. Previously in compat.inc.php, but there LANG_CHARSET was not defined.
+if (isset($serendipity['GET']['searchTerm'])) {
+    $serendipity['GET']['searchTerm'] = serendipity_specialchars(strip_tags($serendipity['GET']['searchTerm']));
 }
 
 // Some stuff...
@@ -427,5 +446,25 @@ if (isset($_SESSION['serendipityUser'])) {
 if (isset($_SESSION['serendipityEmail'])) {
     $serendipity['email'] = $_SESSION['serendipityEmail'];
 }
+
+if (defined('IN_serendipity_admin') && !isset($serendipity['use_autosave'])) {
+    $serendipity['use_autosave'] = true;
+}
+
+if (!isset($serendipity['useInternalCache'])) {
+    $serendipity['useInternalCache'] = false;
+}
+
+// You can set parameters which ImageMagick should use to generate the thumbnails
+// by default, thumbs will get a little more brightness and saturation (modulate)
+// an unsharp-mask (unsharp)
+// and quality-compression of 75% (default would be to use quality of original image)
+if (!isset($serendipity['imagemagick_thumb_parameters'])) {
+    $serendipity['imagemagick_thumb_parameters'] = '';
+    // Set a variable like below in your serendpity_config_local.inc.php
+    //$serendipity['imagemagick_thumb_parameters'] = '-modulate 105,140 -unsharp 0.5x0.5+1.0 -quality 75';
+}
+
 serendipity_plugin_api::hook_event('frontend_configure', $serendipity);
+
 /* vim: set sts=4 ts=4 expandtab : */

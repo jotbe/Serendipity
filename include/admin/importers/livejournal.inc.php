@@ -1,4 +1,4 @@
-<?php # $Id: generic.inc.php 717 2005-11-21 09:56:25Z garvinhicking $
+<?php
 # Copyright (c) 2003-2005, Jannis Hermanns (on behalf the Serendipity Developer Team)
 # Copyright (c) 2009, Matthew Weigel
 # All rights reserved.  See LICENSE file for licensing details
@@ -201,7 +201,7 @@ class Serendipity_Import_LiveJournalXML extends Serendipity_Import {
         global $serendipity;
 
         if (!file_exists($this->data['url'])) {
-            printf(FILE_NOT_FOUND, htmlspecialchars($this->data['url']));
+            printf(FILE_NOT_FOUND, serendipity_specialchars($this->data['url']));
             return false;
         }
 
@@ -252,7 +252,7 @@ class Serendipity_Import_LiveJournalXML extends Serendipity_Import {
                 }
             }
             $id = serendipity_updertEntry($new_entry);
-            echo '<span class="msg_notice">Inserted entry #' . $id . ', "' . htmlspecialchars($new_entry['title']) . '"</span>';
+            echo '<span class="msg_notice">Inserted entry #' . $id . ', "' . serendipity_specialchars($new_entry['title']) . '"</span>';
             if (is_array($new_entry['comments'])) {
                 $cid_map = array();
                 $jids = array();

@@ -1,4 +1,4 @@
-<?php # $Id$
+<?php
 # Copyright (c) 2003-2005, Jannis Hermanns (on behalf the Serendipity Developer Team)
 # All rights reserved.  See LICENSE file for licensing details
 
@@ -9,10 +9,10 @@ session_cache_limiter('public');
 include('serendipity_config.inc.php');
 include(S9Y_INCLUDE_PATH . 'include/functions_rss.inc.php');
 
-$version         = $_GET['version'];
-$description     = $serendipity['blogDescription'];
-$title           = $serendipity['blogTitle'];
-$comments        = FALSE;
+$version     = $_GET['version'];
+$description = $serendipity['blogDescription'];
+$title       = $serendipity['blogTitle'];
+$comments    = FALSE;
 
 if (empty($version)) {
     list($version) = serendipity_discover_rss($_GET['file'], $_GET['ext']);
@@ -87,27 +87,28 @@ if (isset($modified_since) &&
 }
 
 switch ($_GET['type']) {
-case 'comments_and_trackbacks':
-case 'trackbacks':
-case 'comments':
-    $entries     = serendipity_fetchComments(isset($_GET['cid']) ? $_GET['cid'] : null, $serendipity['RSSfetchLimit'], 'co.id desc', false, $_GET['type']);
-    $description = $title . ' - ' . $description;
-    if (isset($_GET['cid'])) {
-        $title       = $title . ' - ' . COMMENTS_FROM . ' "' . $latest_entry[0]['title'] . '"';
-    } else {
-        $title       = $title . ' - ' . COMMENTS;
-    }
-    $comments    = TRUE;
-    break;
-case 'content':
-default:
-    if (isset($_GET['all']) && $_GET['all']) {
-        // Fetch all entries in reverse order for later importing. Fetch sticky entries as normal entries.
-        $entries = serendipity_fetchEntries(null, true, '', false, false, 'id ASC', '', false, true);
-    } else {
-        $entries = serendipity_fetchEntries(null, true, $serendipity['RSSfetchLimit'], false, (isset($modified_since) ? $modified_since : false), 'timestamp DESC', '', false, true);
-    }
-    break;
+    case 'comments_and_trackbacks':
+    case 'trackbacks':
+    case 'comments':
+        $entries     = serendipity_fetchComments(isset($_GET['cid']) ? $_GET['cid'] : null, $serendipity['RSSfetchLimit'], 'co.id desc', false, $_GET['type']);
+        $description = $title . ' - ' . $description;
+        if (isset($_GET['cid'])) {
+            $title   = $title . ' - ' . COMMENTS_FROM . ' "' . $latest_entry[0]['title'] . '"';
+        } else {
+            $title   = $title . ' - ' . COMMENTS;
+        }
+        $comments    = TRUE;
+        break;
+
+    case 'content':
+    default:
+        if (isset($_GET['all']) && $_GET['all']) {
+            // Fetch all entries in reverse order for later importing. Fetch sticky entries as normal entries.
+            $entries = serendipity_fetchEntries(null, true, '', false, false, 'id ASC', '', false, true);
+        } else {
+            $entries = serendipity_fetchEntries(null, true, $serendipity['RSSfetchLimit'], false, (isset($modified_since) ? $modified_since : false), 'timestamp DESC', '', false, true);
+        }
+        break;
 }
 
 if (isset($serendipity['serendipityRealname'])) {
@@ -116,15 +117,15 @@ if (isset($serendipity['serendipityRealname'])) {
 
 if (!empty($serendipity['GET']['category'])) {
     $cInfo       = serendipity_fetchCategoryInfo((int)$serendipity['GET']['category']);
-    $title       = serendipity_utf8_encode(htmlspecialchars($title . ' - '. $cInfo['category_name']));
+    $title       = serendipity_utf8_encode(serendipity_specialchars($title . ' - '. $cInfo['category_name']));
 } elseif (!empty($serendipity['GET']['viewAuthor'])) {
     list($aInfo) = serendipity_fetchAuthor((int)$serendipity['GET']['viewAuthor']);
-    $title       = serendipity_utf8_encode(htmlspecialchars($aInfo['realname'] . ' - '. $title ));
+    $title       = serendipity_utf8_encode(serendipity_specialchars($aInfo['realname'] . ' - '. $title ));
 } else {
-    $title       = serendipity_utf8_encode(htmlspecialchars($title));
+    $title       = serendipity_utf8_encode(serendipity_specialchars($title));
 }
 
-$description = serendipity_utf8_encode(htmlspecialchars($description));
+$description = serendipity_utf8_encode(serendipity_specialchars($description));
 
 $metadata = array(
     'title'             => $title,
@@ -138,56 +139,101 @@ $metadata = array(
     'version'           => $version
 );
 
-if (!defined('S9Y_FRAMEWORK_PLUGIN_API')) {
-    include(S9Y_INCLUDE_PATH . 'include/plugin_api.inc.php');
+if (serendipity_get_config_var('feedBannerURL') != '') {
+    $img = serendipity_get_config_var('feedBannerURL');
+    $w   = serendipity_get_config_var('feedBannerWidth');
+    $h   = serendipity_get_config_var('feedBannerHeight');
+} elseif (($banner = serendipity_getTemplateFile('img/rss_banner.png', 'serendipityPath'))) {
+    $img = serendipity_getTemplateFile('img/rss_banner.png', 'baseURL');
+    $i   = getimagesize($banner);
+    $w   = $i[0];
+    $h   = $i[1];
+} else {
+    $img = serendipity_getTemplateFile('img/s9y_banner_small.png', 'baseURL');
+    $w   = 100;
+    $h   = 21;
 }
-$plugins = serendipity_plugin_api::enum_plugins();
 
-if (is_array($plugins)) {
-    // load each plugin to make some introspection
-    foreach ($plugins as $plugin_data) {
-        if (preg_match('|@serendipity_syndication_plugin|', $plugin_data['name'])) {
-            $plugin =& serendipity_plugin_api::load_plugin($plugin_data['name'], $plugin_data['authorid']);
+$metadata['additional_fields']['image'] = <<<IMAGE
+<image>
+    <url>$img</url>
+    <title>RSS: $title - $description</title>
+    <link>{$serendipity['baseURL']}</link>
+    <width>$w</width>
+    <height>$h</height>
+</image>
+IMAGE;
 
-            $metadata['additional_fields'] = $plugin->generate_rss_fields($metadata['title'], $metadata['description'], $entries);
-            if (is_array($metadata['additional_fields'])) {
-                // Fix up array keys, because "." are not allowed when wanting to output using Smarty
-                foreach($metadata['additional_fields'] AS $_aid => $af) {
-                    $aid = str_replace('.', '', $_aid);
-                    $metadata['additional_fields'][$aid] = $af;
-                }
-            }
-            $metadata['fullFeed']          = $plugin->get_config('fullfeed', false);
-            if ($metadata['fullFeed'] === 'client') {
-                if ($_GET['fullFeed'] || $serendipity['GET']['fullFeed']) {
-                    $metadata['fullFeed'] = true;
-                } else {
-                    $metadata['fullFeed'] = false;
-                }
-            }
+$metadata['additional_fields']['image_atom1.0'] = <<<IMAGE
+<icon>$img</icon>
+IMAGE;
 
-            if ($_GET['type']  == 'content' &&
-                !isset($_GET['category']) &&
-                !isset($serendipity['GET']['tag']) &&
-                $plugin->get_config('show_feedburner') === 'force' &&
-                !preg_match('@FeedBurn@i', $_SERVER['HTTP_USER_AGENT']) &&
-                !(serendipity_userLoggedIn() && isset($_GET['forceLocal']))
-               ) {
-                $fbid = $plugin->get_config('fb_id');
-                if (stristr($fbid, 'http://')) {
-                    $url = $fbid;
-                } else {
-                    $url = 'http://feeds.feedburner.com/' . $fbid;
-                }
-                header('Status: 302 Found');
-                header('Location: ' . $url);
-                exit;
+$metadata['additional_fields']['image_rss1.0_channel'] = '<image rdf:resource="' . $img . '" />';
+$metadata['additional_fields']['image_rss1.0_rdf'] = <<<IMAGE
+<image rdf:about="$img">
+    <url>$img</url>
+    <title>RSS: $title - $description</title>
+    <link>{$serendipity['baseURL']}</link>
+    <width>$w</width>
+    <height>$h</height>
+</image>
+IMAGE;
+
+// Now, if set, stitch together any fields that have been configured in the syndication plugin.
+// First, do some sanity checks
+$metadata['additional_fields']['channel'] = '';
+$rssFields = array('feedManagingEditor' => 'managingEditor', 'feedWebmaster' => 'webMaster', 'feedTtl' => 'ttl', 'feedPubDate' => 'pubDate');
+foreach( $rssFields as $configName => $field) {
+    $fieldValue = serendipity_get_config_var($configName);
+
+    switch($field) {
+        case 'pubDate':
+            if (serendipity_db_bool($fieldValue)) {
+                $fieldValue  = gmdate('D, d M Y H:i:s \G\M\T', $entries[0]['last_modified']);
+            } else {
+                $fieldValue  = '';
             }
-            $metadata['showMail']          = serendipity_db_bool($plugin->get_config('show_mail', $metadata['showMail']));
             break;
-        }
+
+        // Each new RSS-field which needs rewrite of its content should get its own case here.
+
+        default:
+            break;
+    }
+
+    if ($fieldValue != '') {
+        $metadata['additional_fields']['channel'] .= '<' . $field . '>' . $fieldValue . '</' . $field . '>' . "\n";
     }
 }
+
+if (is_array($metadata['additional_fields'])) {
+    // Fix up array keys, because "." are not allowed when wanting to output using Smarty
+    foreach($metadata['additional_fields'] AS $_aid => $af) {
+        $aid = str_replace('.', '', $_aid);
+        $metadata['additional_fields'][$aid] = $af;
+    }
+}
+$metadata['fullFeed'] = serendipity_get_config_var('feedFull', false);
+if ($metadata['fullFeed'] === 'client') {
+    if ($_GET['fullFeed'] || $serendipity['GET']['fullFeed']) {
+        $metadata['fullFeed'] = true;
+    } else {
+        $metadata['fullFeed'] = false;
+    }
+}
+
+if ($_GET['type'] == 'content' &&
+    !isset($_GET['category']) &&
+    !isset($serendipity['GET']['tag']) &&
+    serendipity_db_bool(serendipity_get_config_var('feedForceCustom', false)) &&
+    !preg_match('@FeedBurn@i', $_SERVER['HTTP_USER_AGENT']) &&  // the hardcoded pass for feedburner is for BC. New services should just use the forceLocal-param
+    !isset($_GET['forceLocal'])
+   ) {
+    header('Status: 302 Found');
+    header('Location: ' . serendipity_get_config_var('feedCustom'));
+    exit;
+}
+$metadata['showMail'] = serendipity_db_bool(serendipity_get_config_var('show_mail', $metadata['showMail']));
 
 $file_version  = preg_replace('@[^0-9a-z\.-_]@i', '', $version);
 $metadata['template_file'] = serendipity_getTemplateFile('feed_' . $file_version . '.tpl', 'serendipityPath');
@@ -199,7 +245,7 @@ if (!$metadata['template_file'] || $metadata['template_file'] == 'feed_' . $file
     die("Invalid RSS version specified or RSS-template file not found\n");
 }
 
-$self_url = 'http://' . $_SERVER['HTTP_HOST'] . htmlspecialchars($_SERVER['REQUEST_URI']);
+$self_url = ($_SERVER['HTTPS'] == 'on' ? 'https://' : 'http://') . $_SERVER['HTTP_HOST'] . serendipity_specialchars($_SERVER['REQUEST_URI']);
 if (!is_array($entries)) {
     $entries = array();
 }

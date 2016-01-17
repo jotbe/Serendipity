@@ -10,7 +10,18 @@
         <title>{$head_title|@default:$blogTitle}{if $head_subtitle} - {$head_subtitle}{/if}</title>
         {serendipity_hookPlugin hook="frontend_header"}
         <meta http-equiv="Content-Type" content="text/html; charset={$head_charset}" />
-        <meta name="Powered-By" content="Serendipity v.{$head_version}" />
+        <meta name="generator" content="Serendipity v.{$serendipityVersion}" />
+    {if ($view == "entry" || $view == "start" || $view == "feed" || $view == "plugin" || $staticpage_pagetitle != "" || $robots_index == 'index')}
+        <meta name="robots" content="index,follow" />
+    {else}
+        <meta name="robots" content="noindex,follow" />
+    {/if}
+    {if ($view == "entry")}
+        <link rel="canonical" href="{$entry.rdf_ident}" />
+    {/if}
+    {if ($view == "start")}
+        <link rel="canonical" href="{$serendipityBaseURL}" />
+    {/if}
         <link rel="alternate"  type="application/rss+xml" title="{$blogTitle} RSS feed" href="{$serendipityBaseURL}{$serendipityRewritePrefix}feeds/index.rss2" />
         <link rel="alternate"  type="application/x.atom+xml"  title="{$blogTitle} Atom feed"  href="{$serendipityBaseURL}{$serendipityRewritePrefix}feeds/atom.xml" />
         {if $entry_id}<link rel="pingback" href="{$serendipityBaseURL}comment.php?type=pingback&amp;entry_id={$entry_id}" />{/if}
@@ -50,8 +61,6 @@
         {if $template_option.jscolumns == 'true'}<script type="text/javascript" src="{$serendipityHTTPPath}templates/{$template}/js/p7_eqCols2_10.js"></script>{/if}
         <!-- print media stylesheet -->
         <link rel="stylesheet" type="text/css" href="{serendipity_getFile file="print.css"}" media="print" />
-        <!-- additional user stylesheet: this can be used to override selected styles -->
-        {if $template_option.userstylesheet == 'true'}<link rel="stylesheet" type="text/css" href="{serendipity_getFile file="user.css"}" media="screen" />{/if}
     </head>
 
     <body{if $template_option.jscolumns == 'true'} onload="P7_equalCols2(0,{if $template_option.layouttype != '1col'}'content','DIV',{/if}'serendipityLeftSideBar','DIV','serendipityRightSideBar','DIV')"{/if}>
@@ -163,7 +172,7 @@
                         <div class="serendipitySideBarContent">
                             <!-- the line below must remain as a single uninterrupted line to display correctly in ie6 -->
                             <ul>{foreach from=$navlinks item="navlink" name="sbnav"}<li class="{if $currpage==$navlink.href or $currpage2==$navlink.href}currentpage{/if}{if $smarty.foreach.sbnav.first} sbnavlink_first{/if}{if $smarty.foreach.sbnav.last} sbnavlink_last{/if}"><a href="{$navlink.href}" title="{$navlink.title}">{$navlink.title}</a></li>{/foreach}</ul>
-                        </div>    
+                        </div>
                         <div class="serendipitySideBarFooter"></div>
                     </div>
                 {/if}
@@ -184,7 +193,7 @@
                         <div class="serendipitySideBarContent">
                             <!-- the line below must remain as a single uninterrupted line to display correctly in ie6 -->
                             <ul>{foreach from=$navlinks item="navlink" name="sbnav"}<li class="{if $currpage==$navlink.href or $currpage2==$navlink.href}currentpage{/if}{if $smarty.foreach.sbnav.first} sbnavlink_first{/if}{if $smarty.foreach.sbnav.last} sbnavlink_last{/if}"><a href="{$navlink.href}" title="{$navlink.title}">{$navlink.title}</a></li>{/foreach}</ul>
-                        </div>    
+                        </div>
                         <div class="serendipitySideBarFooter"></div>
                     </div>
                 {/if}
@@ -397,7 +406,7 @@
             <!-- ************************************************************** -->
 
             <div id="serendipity_credit_line">{$CONST.POWERED_BY} <a href="http://www.s9y.org">s9y</a> &ndash; Template by <a href="http://s9y-bulletproof.com">Bulletproof development team</a>.<br />{$template_option.colorset_data.attribution|escape}</div>
-            
+
             {if $template_option.counter_code_toggle == 'true'}
                 <div class="counter_code">{$template_option.counter_code}</div>
             {/if}

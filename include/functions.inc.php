@@ -1,4 +1,4 @@
-<?php # $Id$
+<?php
 # Copyright (c) 2003-2005, Jannis Hermanns (on behalf the Serendipity Developer Team)
 # All rights reserved.  See LICENSE file for licensing details
 
@@ -12,36 +12,18 @@ if (defined('S9Y_FRAMEWORK_FUNCTIONS')) {
 @define('S9Y_FRAMEWORK_FUNCTIONS', true);
 
 $serendipity['imageList'] = array();
-if (!defined('S9Y_FRAMEWORK_DB')) {
-    include(S9Y_INCLUDE_PATH . "include/db/db.inc.php");
-}
-if (!defined('S9Y_FRAMEWORK_COMPAT')) {
-    include(S9Y_INCLUDE_PATH . "include/compat.inc.php");
-}
-if (!defined('S9Y_FRAMEWORK_CONFIG')) {
-    include(S9Y_INCLUDE_PATH . "include/functions_config.inc.php");
-}
-if (!defined('S9Y_FRAMEWORK_PLUGIN_API')) {
-    include(S9Y_INCLUDE_PATH . "include/plugin_api.inc.php");
-}
-if (!defined('S9Y_FRAMEWORK_IMAGES')) {
-    include(S9Y_INCLUDE_PATH . "include/functions_images.inc.php");
-}
-if (!defined('S9Y_FRAMEWORK_INSTALLER')) {
-    include(S9Y_INCLUDE_PATH . "include/functions_installer.inc.php");
-}
-if (!defined('S9Y_FRAMEWORK_ENTRIES')) {
-    include(S9Y_INCLUDE_PATH . "include/functions_entries.inc.php");
-}
-if (!defined('S9Y_FRAMEWORK_COMMENTS')) {
-    include(S9Y_INCLUDE_PATH . "include/functions_comments.inc.php");
-}
-if (!defined('S9Y_FRAMEWORK_PERMALINKS')) {
-    include(S9Y_INCLUDE_PATH . "include/functions_permalinks.inc.php");
-}
-if (!defined('S9Y_FRAMEWORK_SMARTY')) {
-    include(S9Y_INCLUDE_PATH . "include/functions_smarty.inc.php");
-}
+
+include_once(S9Y_INCLUDE_PATH . 'include/db/db.inc.php');
+include_once(S9Y_INCLUDE_PATH . 'include/compat.inc.php');
+include_once(S9Y_INCLUDE_PATH . 'include/functions_config.inc.php');
+include_once(S9Y_INCLUDE_PATH . 'include/plugin_api.inc.php');
+include_once(S9Y_INCLUDE_PATH . 'include/functions_images.inc.php');
+include_once(S9Y_INCLUDE_PATH . 'include/functions_installer.inc.php');
+include_once(S9Y_INCLUDE_PATH . 'include/functions_entries.inc.php');
+include_once(S9Y_INCLUDE_PATH . 'include/functions_comments.inc.php');
+include_once(S9Y_INCLUDE_PATH . 'include/functions_permalinks.inc.php');
+include_once(S9Y_INCLUDE_PATH . 'include/functions_smarty.inc.php');
+
 /**
  * Truncate a string to a specific length, multibyte aware. Appends '...' if successfully truncated
  *
@@ -80,7 +62,7 @@ function serendipity_gzCompression() {
 function serendipity_serverOffsetHour($timestamp = null, $negative = false) {
     global $serendipity;
 
-    if ($timestamp == null) {
+    if ($timestamp === null) {
         $timestamp = time();
     }
 
@@ -276,9 +258,29 @@ function serendipity_fetchTemplateInfo($theme, $abspath = null) {
         $data[$k] = implode("\n", $v);
     }
 
+    if (@is_file($serendipity['templatePath'] . $theme . '/config.inc.php')) {
+        $data['custom_config'] = YES;
+        $data['custom_config_engine'] = $theme;
+    }
+
+    // Templates can depend on a possible "Engine" (i.e. "Engine: 2k11").
+    // We support the fallback chain also of a template's configuration, so let's check each engine for a config file.
+    if (!empty($data['engine'])) {
+        $engines = explode(',', $data['engine']);
+        foreach($engines AS $engine) {
+            $engine = trim($engine);
+            if (empty($engine)) continue;
+
+            if (@is_file($serendipity['templatePath'] . $engine . '/config.inc.php')) {
+                $data['custom_config'] = YES;
+                $data['custom_config_engine'] = $engine;
+            }
+        }
+    }
+
     if ( $theme != 'default' && $theme != 'default-rtl'
       && @is_dir($serendipity['templatePath'] . $theme . '/admin')
-      && @is_readable($serendipity['templatePath'] . $theme . '/admin/style.css') ) {
+      && strtolower($data['backend']) == 'yes' ) {
 
         $data['custom_admin_interface'] = YES;
     } else {
@@ -531,7 +533,7 @@ function serendipity_sendMail($to, $subject, $message, $fromMail, $headers = NUL
         $maildata['headers'][] = 'Auto-Submitted: auto-generated';
 
         if (LANG_CHARSET == 'UTF-8') {
-            if (function_exists('imap_8bit')) {
+            if (function_exists('imap_8bit') && !$serendipity['forceBase64']) {
                 $maildata['headers'][] = 'Content-Transfer-Encoding: quoted-printable';
                 $maildata['message']   = imap_8bit($maildata['message']);
             } else {
@@ -874,7 +876,7 @@ function serendipity_track_url($list, $url, $entry_id = 0) {
  * @return string   List of Top referrers
  */
 function serendipity_displayTopReferrers($limit = 10, $use_links = true, $interval = 7) {
-    serendipity_displayTopUrlList('referrers', $limit, $use_links, $interval);
+    return serendipity_displayTopUrlList('referrers', $limit, $use_links, $interval);
 }
 
 /**
@@ -888,7 +890,7 @@ function serendipity_displayTopReferrers($limit = 10, $use_links = true, $interv
  * @return string   List of Top exits
  */
 function serendipity_displayTopExits($limit = 10, $use_links = true, $interval = 7) {
-    serendipity_displayTopUrlList('exits', $limit, $use_links, $interval);
+    return serendipity_displayTopUrlList('exits', $limit, $use_links, $interval);
 }
 
 /**
@@ -931,26 +933,27 @@ function serendipity_displayTopUrlList($list, $limit, $use_links = true, $interv
     }
 
     $rows = serendipity_db_query($query);
-    echo "<span class='serendipityReferer'>";
+    $output = "<span class='serendipityReferer'>";
     if (is_array($rows)) {
         foreach ($rows as $row) {
             if ($use_links) {
-                printf(
-                    '<a href="%1$s://%2$s" title="%2$s" >%2$s</a> (%3$s)<br />',
-                    htmlspecialchars($row['scheme']),
-                    htmlspecialchars($row['host']),
-                    htmlspecialchars($row['total'])
+                $output .= sprintf(
+                    '<span class="block_level"><a href="%1$s://%2$s" title="%2$s" >%2$s</a> (%3$s) </span>',
+                    serendipity_specialchars($row['scheme']),
+                    serendipity_specialchars($row['host']),
+                    serendipity_specialchars($row['total'])
                 );
             } else {
-                printf(
-                    '%1$s (%2$s)<br />',
-                    htmlspecialchars($row['host']),
-                    htmlspecialchars($row['total'])
+                $output .= sprintf(
+                    '<span class="block_level">%1$s (%2$s) </span>',
+                    serendipity_specialchars($row['host']),
+                    serendipity_specialchars($row['total'])
                 );
             }
         }
     }
-    echo "</span>";
+    $output .= "</span>";
+    return $output;
 }
 
 /**
@@ -1201,6 +1204,24 @@ function serendipity_db_time() {
 
     return $ts;
 }
+
+/* Inits the logger.
+ * @return null
+ */
+function serendipity_initLog() {
+    global $serendipity;
+
+    if (isset($serendipity['logLevel']) && $serendipity['logLevel'] !== 'Off') {
+	if ($serendipity['logLevel'] == 'debug') {
+	    $log_level = Psr\Log\LogLevel::DEBUG;
+	} else {
+	    $log_level = Psr\Log\LogLevel::ERROR;
+	}
+
+	$serendipity['logger'] = new Katzgrau\KLogger\Logger($serendipity['serendipityPath'] . '/templates_c/logs', $log_level);
+    }
+}
+                                                                     
 
 define("serendipity_FUNCTIONS_LOADED", true);
 /* vim: set sts=4 ts=4 expandtab : */
